@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rewardly/models/user_tier.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
-import 'package:rewardly/screens/store_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -42,7 +42,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 20),
             Text(
               'You are not logged in',
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Text(
@@ -79,7 +80,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (userSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (!userSnapshot.hasData || userSnapshot.hasError || !userSnapshot.data!.exists) {
+            if (!userSnapshot.hasData ||
+                userSnapshot.hasError ||
+                !userSnapshot.data!.exists) {
               return const Center(child: Text('Could not load user data.'));
             }
 
@@ -102,8 +105,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(ThemeData theme, String email, int points, UserTier userTier) {
-     return Column(
+  Widget _buildProfileHeader(
+      ThemeData theme, String email, int points, UserTier userTier) {
+    return Column(
       children: [
         CircleAvatar(
           radius: 60,
@@ -138,7 +142,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(width: 10),
             Chip(
-              avatar: Icon(Icons.military_tech, color: _getTierColor(userTier, theme)),
+              avatar:
+                  Icon(Icons.military_tech, color: _getTierColor(userTier, theme)),
               label: Text(
                 _getTierName(userTier),
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -213,7 +218,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildActionButton(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildActionButton(BuildContext context,
+      {required IconData icon,
+      required String label,
+      required VoidCallback onTap}) {
     final theme = Theme.of(context);
     return Card(
       child: InkWell(
@@ -225,7 +233,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Icon(icon, size: 28, color: theme.primaryColor),
               const SizedBox(width: 16),
-              Text(label, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+              Text(label,
+                  style: theme.textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
               const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
             ],

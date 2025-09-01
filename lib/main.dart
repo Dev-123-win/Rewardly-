@@ -33,7 +33,7 @@ void main() async {
 
   // TODO: Replace with your own reCAPTCHA v3 site key
   await FirebaseAppCheck.instance.activate(
-    webRecaptchaV3SiteKey: 'recaptcha-v3-site-key',
+    webProvider: ReCaptchaV3Provider('recaptcha-v3-site-key'),
     androidProvider: AndroidProvider.playIntegrity,
   );
 

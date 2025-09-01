@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rewardly/screens/store_screen.dart';
+import 'package:rewardly/models/user_tier.dart';
 import 'dart:math';
 
 class RegisterScreen extends StatefulWidget {
@@ -189,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       obscureText: true,
       decoration: const InputDecoration(
         labelText: 'Password',
-        prefixIcon: Icon(Icons.lock_outline),
+        prefixIcon: Icon(Icons.lock_outlined),
       ),
       validator: (value) =>
           value == null || value.length < 6 ? 'Password is too short' : null,

@@ -24,6 +24,5 @@ The app will adhere to Material Design 3 principles, with a modern and clean aes
 
 ### Current Plan
 
-*   **Reactive Architecture:** I will overhaul the app's architecture to use real-time listeners (`snapshots()`) and a state management solution (`provider`) to dramatically reduce Firestore read costs and improve the user experience.
-*   **App Check:** I will implement Firebase App Check to protect the app from abuse.
-*   **Budget Alerts:** I will guide the user on how to set up budget alerts in the Google Cloud Console.
+*   **Admin Panel:** I have created an admin panel that is only accessible to users with administrative privileges. The panel has a tabbed layout to switch between a list of all registered users and a list of pending withdrawal requests.
+

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -46,8 +47,13 @@ class UserDataProvider with ChangeNotifier {
       }
       // Notify all listening widgets that the data has changed
       notifyListeners();
-    }, onError: (error) {
-      print("Error listening to user data: $error");
+    }, onError: (error, stackTrace) {
+       developer.log(
+        'Error listening to user data',
+        name: 'UserDataProvider',
+        error: error,
+        stackTrace: stackTrace,
+      );
       _userData = null;
       notifyListeners();
     });

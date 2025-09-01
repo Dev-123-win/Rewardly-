@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rewardly/screens/store_screen.dart';
+import 'package:rewardly/models/user_tier.dart';
 
 class PointsCard extends StatelessWidget {
   final int points;
