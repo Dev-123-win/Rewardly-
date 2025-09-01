@@ -1,28 +1,5 @@
 {
-  "flutter": {
-    "platforms": {
-      "android": {
-        "default": {
-          "projectId": "adlingo-games",
-          "appId": "1:34233665214:android:c2a941820c9c61b42cc0ef",
-          "fileOutput": "android/app/google-services.json"
-        }
-      },
-      "dart": {
-        "lib/firebase_options.dart": {
-          "projectId": "adlingo-games",
-          "configurations": {
-            "android": "1:34233665214:android:c2a941820c9c61b42cc0ef",
-            "web": "1:34233665214:web:a9259fc9b1d61f3e2cc0ef"
-          }
-        }
-      }
-    }
-  },
-  "firestore": {
-    "database": "(default)",
-    "location": "nam5",
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+  "functions": {
+    "source": "functions"
   }
 }

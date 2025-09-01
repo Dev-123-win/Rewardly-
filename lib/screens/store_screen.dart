@@ -1,21 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+enum UserTier { bronze, silver, gold }
 
 class StoreItem {
   final String name;
   final int price;
   final String imageUrl;
+  final UserTier requiredTier;
 
   const StoreItem({
     required this.name,
     required this.price,
     required this.imageUrl,
+    this.requiredTier = UserTier.bronze,
   });
 }
 
-class StoreScreen extends StatelessWidget {
+class StoreScreen extends StatefulWidget {
   const StoreScreen({super.key});
+
+  @override
+  State<StoreScreen> createState() => _StoreScreenState();
+}
+
+class _StoreScreenState extends State<StoreScreen> {
 
   static final List<StoreItem> _items = [
     const StoreItem(
@@ -23,24 +35,69 @@ class StoreScreen extends StatelessWidget {
     const StoreItem(
         name: 'Movie Ticket', price: 200, imageUrl: 'https://picsum.photos/seed/b/200/300'),
     const StoreItem(
-        name: 'T-shirt', price: 500, imageUrl: 'https://picsum.photos/seed/c/200/300'),
+        name: 'T-shirt', price: 500, imageUrl: 'https://picsum.photos/seed/c/200/300', requiredTier: UserTier.silver),
     const StoreItem(
         name: 'Coffee Mug', price: 150, imageUrl: 'https://picsum.photos/seed/d/200/300'),
     const StoreItem(
         name: 'Wireless Earbuds',
         price: 2000,
-        imageUrl: 'https://picsum.photos/seed/e/200/300'),
+        imageUrl: 'https://picsum.photos/seed/e/200/300', requiredTier: UserTier.silver),
     const StoreItem(
-        name: 'Smartwatch', price: 5000, imageUrl: 'https://picsum.photos/seed/f/200/300'),
+        name: 'Smartwatch', price: 5000, imageUrl: 'https://picsum.photos/seed/f/200/300', requiredTier: UserTier.gold),
   ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: const RewardlyAppBar(),
-      body: CustomScrollView(
+      body: user == null
+          ? _buildLoggedOutView(context, theme)
+          : _buildStoreView(context, theme, user),
+    );
+  }
+
+  Widget _buildLoggedOutView(BuildContext context, ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.store_outlined, size: 80),
+          const SizedBox(height: 20),
+          Text('You are not logged in', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 10),
+          Text(
+            'Log in to see the amazing rewards you can get!',
+            style: theme.textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 30),
+          ElevatedButton(
+            onPressed: () => context.go('/login'),
+            child: const Text('Go to Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreView(BuildContext context, ThemeData theme, User user) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final userTier = UserTier.values[userData['tier'] ?? 0];
+        final userPoints = userData['points'] as int? ?? 0;
+
+        final filteredItems = _items.where((item) => userTier.index >= item.requiredTier.index).toList();
+
+        return CustomScrollView(
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(16.0),
@@ -74,10 +131,10 @@ class StoreScreen extends StatelessWidget {
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  final item = _items[index];
-                  return _buildStoreItemCard(context, theme, item);
+                  final item = filteredItems[index];
+                  return _buildStoreItemCard(context, theme, item, userPoints);
                 },
-                childCount: _items.length,
+                childCount: filteredItems.length,
               ),
             ),
           ),
@@ -92,17 +149,18 @@ class StoreScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 
   Widget _buildStoreItemCard(
-      BuildContext context, ThemeData theme, StoreItem item) {
+      BuildContext context, ThemeData theme, StoreItem item, int userPoints) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          _showRedeemDialog(context, item);
+          _showRedeemDialog(context, item, userPoints);
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,12 +213,22 @@ class StoreScreen extends StatelessWidget {
     );
   }
 
-  void _showRedeemDialog(BuildContext context, StoreItem item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('"${item.name}" redeemed successfully! (Not really)'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  void _showRedeemDialog(BuildContext context, StoreItem item, int userPoints) {
+    if (userPoints >= item.price) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${item.name}" redeemed successfully! (Not really)'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You don\'t have enough points to redeem this item.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

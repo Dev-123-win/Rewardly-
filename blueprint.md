@@ -24,9 +24,20 @@ This document outlines the style, design, and features of the Rewardly Flutter a
 
 ## Current Plan
 
-1.  **Refine Color Scheme**: Update the primary color from `deepPurple` to a more modern `blue`.
-2.  **Enhance UI Components**: Increase the elevation and shadow of `Card` widgets to create a "lifted" look.
-3.  **Implement User-Friendly Error Handling**:
-    *   Add the `connectivity_plus` package to monitor network status.
-    *   Create a global, non-intrusive banner to inform the user when they are offline.
-4.  **Add Background Texture**: Apply a subtle noise texture to the app's background to enhance the visual design (pending finding a suitable asset or method).
+### Tiered Rewards and Store
+
+1.  **Introduce User Tiers**: Create a tier system (e.g., Bronze, Silver, Gold) based on user points.
+2.  **Tier-Based Rewards**: Adjust the number of points earned from watching ads based on the user's tier.
+3.  **Exclusive Store Items**: Add a `requiredTier` to store items, making some items exclusive to higher-tier users.
+4.  **UI Enhancements**: Display the user's tier on the profile and home screens.
+
+### Referral System
+
+1.  **Generate Referral Codes**: Create a unique referral code for each user.
+2.  **Share Functionality**: Allow users to share their referral codes.
+3.  **Reward Referrals**: Implement a system to reward both the referrer and the new user upon successful referral.
+
+### Push Notifications and Remote Config
+
+1.  **Firebase Cloud Messaging**: Set up push notifications to alert users about new rewards, promotions, and successful referrals.
+2.  **Firebase Remote Config**: Use Remote Config to dynamically adjust reward values and feature flags without releasing a new version of the app.

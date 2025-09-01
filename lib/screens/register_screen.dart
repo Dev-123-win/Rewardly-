@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rewardly/screens/store_screen.dart';
+import 'dart:math';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,8 +17,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+
+  String _generateReferralCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return String.fromCharCodes(Iterable.generate(
+        6, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
+  }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
@@ -31,13 +41,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+      final referralCode = _generateReferralCode();
       await FirebaseFirestore.instance
           .collection('users')
           .doc(credential.user!.uid)
           .set({
         'email': _emailController.text,
         'points': 0,
+        'tier': UserTier.bronze.index,
+        'referralCode': referralCode,
+        'referredBy': _referralCodeController.text,
       });
+
+      if (mounted) {
+        context.go('/');
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
@@ -84,6 +102,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _buildPasswordField(),
                 const SizedBox(height: 20),
                 _buildConfirmPasswordField(),
+                const SizedBox(height: 20),
+                _buildReferralCodeField(),
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
@@ -143,6 +163,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           : null,
     );
   }
+
+    Widget _buildReferralCodeField() {
+    return TextFormField(
+      controller: _referralCodeController,
+      decoration: const InputDecoration(
+        labelText: 'Referral Code (Optional)',
+        prefixIcon: Icon(Icons.group_add_outlined),
+      ),
+    );
+  }
+
 
   Widget _buildRegisterButton() {
     return ElevatedButton(

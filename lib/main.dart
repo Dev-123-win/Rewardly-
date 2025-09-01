@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:rewardly/screens/admin_screen.dart';
 import 'package:rewardly/screens/home_screen.dart';
 import 'package:rewardly/screens/store_screen.dart';
 import 'package:rewardly/screens/profile_screen.dart';
@@ -12,6 +13,8 @@ import 'package:rewardly/screens/login_screen.dart';
 import 'package:rewardly/screens/register_screen.dart';
 import 'package:rewardly/screens/withdrawal_screen.dart';
 import 'package:rewardly/screens/withdrawal_history_screen.dart';
+import 'package:rewardly/screens/referral_screen.dart';
+import 'package:rewardly/widgets/noise_background.dart';
 import 'firebase_options.dart';
 import 'package:go_router/go_router.dart';
 
@@ -56,6 +59,14 @@ final _router = GoRouter(
           path: 'withdrawal_history',
           builder: (context, state) => const WithdrawalHistoryScreen(),
         ),
+        GoRoute(
+          path: 'referral',
+          builder: (context, state) => const ReferralScreen(),
+        ),
+        GoRoute(
+          path: 'admin',
+          builder: (context, state) => const AdminScreen(),
+        ),
       ],
     ),
   ],
@@ -75,7 +86,8 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((result) {
       setState(() {
         _isOffline = result == ConnectivityResult.none;
       });
@@ -148,21 +160,23 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
       builder: (context, child) {
-        return Column(
-          children: [
-            if (_isOffline)
-              Container(
-                width: double.infinity,
-                color: Colors.red,
-                padding: const EdgeInsets.all(8.0),
-                child: const Text(
-                  'No Internet Connection',
-                  style: TextStyle(color: Colors.white),
-                  textAlign: TextAlign.center,
+        return NoiseBackground(
+          child: Column(
+            children: [
+              if (_isOffline)
+                Container(
+                  width: double.infinity,
+                  color: Colors.red,
+                  padding: const EdgeInsets.all(8.0),
+                  child: const Text(
+                    'No Internet Connection',
+                    style: TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            Expanded(child: child!),
-          ],
+              Expanded(child: child!),
+            ],
+          ),
         );
       },
     );
@@ -194,6 +208,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
       ),

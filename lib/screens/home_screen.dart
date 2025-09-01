@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/widgets/points_card.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
+import 'package:rewardly/screens/store_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showRewardedAd() {
+  void _showRewardedAd(UserTier userTier) {
     setState(() {
       _isAdShowing = true;
     });
@@ -46,16 +47,17 @@ class _HomeScreenState extends State<HomeScreen> {
       onUserEarnedReward: (reward) {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
+          final pointsToAward = _getPointsForTier(userTier);
           FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-            'points': FieldValue.increment(10),
+            'points': FieldValue.increment(pointsToAward),
           });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('You earned $pointsToAward points!'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You earned 10 points!'),
-            duration: Duration(seconds: 2),
-          ),
-        );
       },
       onAdDismissed: () {
         setState(() {
@@ -63,6 +65,18 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       },
     );
+  }
+
+  int _getPointsForTier(UserTier tier) {
+    switch (tier) {
+      case UserTier.gold:
+        return 20;
+      case UserTier.silver:
+        return 15;
+      case UserTier.bronze:
+      default:
+        return 10;
+    }
   }
 
   @override
@@ -88,14 +102,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final userPoints = (snapshot.data!.data()
-                        as Map<String, dynamic>?)?['points'] as int? ??
-                        0;
-                    return PointsCard(points: userPoints);
+                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                    final userPoints = userData?['points'] as int? ?? 0;
+                    final userTier = UserTier.values[userData?['tier'] ?? 0];
+
+                    return Column(
+                      children: [
+                        PointsCard(points: userPoints, userTier: userTier),
+                        const SizedBox(height: 30),
+                        _buildWatchAdButton(theme, userTier),
+                      ],
+                    );
                   },
                 ),
-              const SizedBox(height: 30),
-              _buildWatchAdButton(theme),
               const SizedBox(height: 20),
               _buildNavigationButtons(context, theme),
             ],
@@ -105,26 +124,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWatchAdButton(ThemeData theme) {
+  Widget _buildWatchAdButton(ThemeData theme, UserTier userTier) {
     return ElevatedButton.icon(
-      onPressed: _isAdShowing ? null : _showRewardedAd,
+      onPressed: _isAdShowing ? null : () => _showRewardedAd(userTier),
       icon: _isAdShowing
           ? const SizedBox(
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(strokeWidth: 3),
+        child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
       )
           : const Icon(Icons.movie_creation_outlined),
       label: Text(
         _isAdShowing ? 'Loading Ad...' : 'Watch Ad, Earn Points',
-        style: theme.textTheme.labelLarge?.copyWith(
-          fontSize: 18,
-          color: Colors.white,
-        ),
-      ),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

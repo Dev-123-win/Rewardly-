@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
+import 'package:rewardly/screens/store_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -61,37 +62,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileView(BuildContext context, ThemeData theme) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser!.uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    return FutureBuilder<IdTokenResult>(
+      future: currentUser!.getIdTokenResult(),
+      builder: (context, idTokenSnapshot) {
+        if (!idTokenSnapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (!snapshot.hasData || snapshot.hasError || !snapshot.data!.exists) {
-          return const Center(child: Text('Could not load user data.'));
-        }
+        final bool isAdmin = idTokenSnapshot.data?.claims?['admin'] == true;
 
-        final userData = snapshot.data!.data() as Map<String, dynamic>;
-        final email = userData['email'] as String? ?? 'No email provided';
-        final points = userData['points'] as int? ?? 0;
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser!.uid)
+              .snapshots(),
+          builder: (context, userSnapshot) {
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!userSnapshot.hasData || userSnapshot.hasError || !userSnapshot.data!.exists) {
+              return const Center(child: Text('Could not load user data.'));
+            }
 
-        return ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildProfileHeader(theme, email, points),
-            const SizedBox(height: 30),
-            _buildProfileActions(context),
-          ],
+            final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+            final email = userData['email'] as String? ?? 'No email provided';
+            final points = userData['points'] as int? ?? 0;
+            final userTier = UserTier.values[userData['tier'] ?? 0];
+
+            return ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                _buildProfileHeader(theme, email, points, userTier),
+                const SizedBox(height: 30),
+                _buildProfileActions(context, isAdmin),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildProfileHeader(ThemeData theme, String email, int points) {
-    return Column(
+  Widget _buildProfileHeader(ThemeData theme, String email, int points, UserTier userTier) {
+     return Column(
       children: [
         CircleAvatar(
           radius: 60,
@@ -110,22 +122,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Chip(
-          avatar: Icon(Icons.star_border, color: theme.colorScheme.secondary),
-          label: Text(
-            '$points Points',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Chip(
+              avatar: Icon(Icons.star_border, color: theme.colorScheme.secondary),
+              label: Text(
+                '$points Points',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-          ),
-          backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
+            const SizedBox(width: 10),
+            Chip(
+              avatar: Icon(Icons.military_tech, color: _getTierColor(userTier, theme)),
+              label: Text(
+                _getTierName(userTier),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: _getTierColor(userTier, theme).withOpacity(0.1),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ],
+        )
       ],
     );
   }
 
-  Widget _buildProfileActions(BuildContext context) {
+  String _getTierName(UserTier tier) {
+    switch (tier) {
+      case UserTier.gold:
+        return 'Gold';
+      case UserTier.silver:
+        return 'Silver';
+      case UserTier.bronze:
+      default:
+        return 'Bronze';
+    }
+  }
+
+  Color _getTierColor(UserTier tier, ThemeData theme) {
+    switch (tier) {
+      case UserTier.gold:
+        return Colors.amber;
+      case UserTier.silver:
+        return Colors.grey[400]!;
+      case UserTier.bronze:
+      default:
+        return theme.colorScheme.secondary;
+    }
+  }
+
+  Widget _buildProfileActions(BuildContext context, bool isAdmin) {
     return Column(
       children: [
         _buildActionButton(
@@ -141,6 +194,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           label: 'Withdrawal History',
           onTap: () => context.go('/withdrawal_history'),
         ),
+        const SizedBox(height: 16),
+        _buildActionButton(
+          context,
+          icon: Icons.group_add_outlined,
+          label: 'Refer a Friend',
+          onTap: () => context.go('/referral'),
+        ),
+        if (isAdmin)
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0),
+            child: _buildActionButton(
+              context,
+              icon: Icons.admin_panel_settings_outlined,
+              label: 'Admin Panel',
+              onTap: () => context.go('/admin'),
+            ),
+          ),
       ],
     );
   }
