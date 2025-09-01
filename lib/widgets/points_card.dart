@@ -14,7 +14,6 @@ class PointsCard extends StatelessWidget {
       case UserTier.silver:
         return 'Silver';
       case UserTier.bronze:
-      default:
         return 'Bronze';
     }
   }
@@ -26,7 +25,6 @@ class PointsCard extends StatelessWidget {
       case UserTier.silver:
         return Colors.grey[300]!;
       case UserTier.bronze:
-      default:
         return theme.colorScheme.secondary;
     }
   }
@@ -49,7 +47,7 @@ class PointsCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
             colors: [
-              theme.primaryColor.withOpacity(0.9),
+              theme.primaryColor.withAlpha(230),
               theme.primaryColor,
             ],
             begin: Alignment.topLeft,
@@ -62,7 +60,7 @@ class PointsCard extends StatelessWidget {
             Text(
               'Your Points',
               style: theme.textTheme.titleLarge?.copyWith(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withAlpha(230),
               ),
             ),
             const SizedBox(height: 10),

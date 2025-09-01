@@ -107,7 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         CircleAvatar(
           radius: 60,
-          backgroundColor: theme.primaryColor.withOpacity(0.1),
+          backgroundColor: theme.primaryColor.withAlpha(25),
           child: Icon(
             Icons.person_outline,
             size: 60,
@@ -133,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+              backgroundColor: theme.colorScheme.secondary.withAlpha(25),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             const SizedBox(width: 10),
@@ -145,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              backgroundColor: _getTierColor(userTier, theme).withOpacity(0.1),
+              backgroundColor: _getTierColor(userTier, theme).withAlpha(25),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ],
@@ -161,7 +161,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case UserTier.silver:
         return 'Silver';
       case UserTier.bronze:
-      default:
         return 'Bronze';
     }
   }
@@ -173,7 +172,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case UserTier.silver:
         return Colors.grey[400]!;
       case UserTier.bronze:
-      default:
         return theme.colorScheme.secondary;
     }
   }

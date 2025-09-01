@@ -3,14 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class RewardlyAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const RewardlyAppBar({super.key});
+  final String? title;
+  const RewardlyAppBar({super.key, this.title});
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       automaticallyImplyLeading: false,
       title: Text(
-        'Rewardly',
+        title ?? 'Rewardly',
         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),

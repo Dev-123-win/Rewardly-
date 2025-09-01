@@ -25,7 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
     return String.fromCharCodes(Iterable.generate(
-        6, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
+        8, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
   }
 
   Future<void> _register() async {
@@ -37,21 +37,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
+      // Create the new user
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
-      final referralCode = _generateReferralCode();
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set({
+      final newUser = credential.user;
+      if (newUser == null) return;
+
+      int initialPoints = 100; // Default starting points
+      String? referredBy = _referralCodeController.text.trim();
+      DocumentReference? referrerDocRef;
+
+      // Check if a referral code was entered and is valid
+      if (referredBy.isNotEmpty) {
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('referralCode', isEqualTo: referredBy)
+            .limit(1)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          referrerDocRef = querySnapshot.docs.first.reference;
+          initialPoints += 50; // Bonus points for the new user
+        } else {
+          // Handle invalid referral code
+          setState(() {
+            _errorMessage = 'Invalid referral code. Please check and try again.';
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      // Use a batch write for atomic operations
+      final batch = FirebaseFirestore.instance.batch();
+
+      // 1. Create the new user's document
+      final newUserDocRef = FirebaseFirestore.instance.collection('users').doc(newUser.uid);
+      batch.set(newUserDocRef, {
         'email': _emailController.text,
-        'points': 0,
+        'points': initialPoints,
         'tier': UserTier.bronze.index,
-        'referralCode': referralCode,
-        'referredBy': _referralCodeController.text,
+        'referralCode': _generateReferralCode(),
+        'referredBy': referredBy.isNotEmpty ? referrerDocRef!.id : null,
+        'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // 2. Reward the referrer if one exists
+      if (referrerDocRef != null) {
+        batch.update(referrerDocRef, {
+          'points': FieldValue.increment(100), // Bonus points for the referrer
+        });
+      }
+
+      // Commit the batch
+      await batch.commit();
 
       if (mounted) {
         context.go('/');
@@ -59,6 +100,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "An unexpected error occurred. Please try again.";
       });
     } finally {
       if (mounted) {
@@ -68,6 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

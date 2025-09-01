@@ -74,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
       case UserTier.silver:
         return 15;
       case UserTier.bronze:
-      default:
         return 10;
     }
   }

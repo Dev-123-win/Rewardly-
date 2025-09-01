@@ -80,7 +80,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   bool _isOffline = false;
 
   @override
@@ -89,7 +89,7 @@ class _MyAppState extends State<MyApp> {
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((result) {
       setState(() {
-        _isOffline = result == ConnectivityResult.none;
+        _isOffline = result.contains(ConnectivityResult.none);
       });
     });
   }
@@ -151,7 +151,7 @@ class _MyAppState extends State<MyApp> {
             borderSide: const BorderSide(color: primaryColor, width: 2),
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 8,
           shadowColor: Colors.black.withAlpha(50),
           shape: RoundedRectangleBorder(

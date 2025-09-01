@@ -24,7 +24,7 @@ class NoiseBackground extends StatelessWidget {
 class NoisePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withOpacity(0.05);
+    final paint = Paint()..color = Colors.black.withAlpha(12);
     final random = Random();
 
     for (int i = 0; i < size.width * size.height / 50; i++) {
