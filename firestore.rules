@@ -1,0 +1,37 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access to all documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // Admins can read any user document for oversight.
+      // Users can read and update their own document.
+      allow read, update: if request.auth.uid == userId || request.auth.token.admin == true;
+      
+      // Allow a new user to be created during sign-up.
+      allow create: if request.auth.uid == userId;
+    }
+
+    // Rules for the 'withdrawals' collection
+    match /withdrawals/{withdrawalId} {
+      // Users can create their own withdrawal requests if the data is valid.
+      // The userId must match their own, status must be 'pending', and amount must be positive.
+      allow create: if request.auth.uid == request.resource.data.userId &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.amount > 0;
+
+      // Users can read their own withdrawal requests.
+      // Admins can read any withdrawal request.
+      allow read: if request.auth.uid == resource.data.userId || request.auth.token.admin == true;
+
+      // Admins can update (approve/deny) or delete any withdrawal request.
+      allow update, delete: if request.auth.token.admin == true;
+    }
+  }
+}
