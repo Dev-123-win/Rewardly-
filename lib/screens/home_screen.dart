@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,6 +11,7 @@ import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/widgets/points_card.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
 import 'package:rewardly/widgets/streak_indicator.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isHintAdShowing = false;
   bool _isAdmin = false;
   BannerAd? _bannerAd;
+  late final WebViewController _webViewController;
 
   @override
   void initState() {
@@ -32,6 +35,29 @@ class _HomeScreenState extends State<HomeScreen> {
     _adService.loadRewardedInterstitialAd();
     _checkAdminStatus();
     _loadBannerAd();
+    _initWebViewController();
+  }
+
+  void _initWebViewController() {
+    _webViewController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..addJavaScriptChannel(
+        'Print',
+        onMessageReceived: (JavaScriptMessage message) {
+          final parts = message.message.split(':');
+          final command = parts[0];
+          final value = parts.length > 1 ? parts[1] : null;
+
+          if (command == 'addPoints') {
+            final points = int.tryParse(value ?? '0') ?? 0;
+            _addGamePoints(points);
+          } else if (command == 'watchAdToContinue') {
+            _handleGameAd();
+          }
+        },
+      )
+      ..loadFlutterAsset('endless_runner_game/index.html');
   }
 
   void _loadBannerAd() {
@@ -61,6 +87,26 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
+  
+  Future<void> _addGamePoints(int points) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    await userDocRef.update({'points': FieldValue.increment(points)});
+  }
+
+  void _handleGameAd() {
+    _adService.showRewardedAd(
+      onUserEarnedReward: (reward) {
+        // Tell the game to revive the player
+        _webViewController.runJavaScript('revivePlayer()');
+      },
+      onAdDismissed: () {
+        // Optional: handle ad dismissal if needed
+      },
+    );
+  }
+
 
   Future<void> _handleAdWatched() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -195,40 +241,51 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: const RewardlyAppBar(),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Consumer<UserDataProvider>(
-            builder: (context, userDataProvider, child) {
-              final userPoints = userDataProvider.points;
-              final userTier = UserTier.values[userDataProvider.userData?['tier'] ?? 0];
-              final dailyStreak = userDataProvider.userData?['dailyStreak'] ?? 0;
-              final adsWatchedToday = userDataProvider.userData?['adsWatchedToday'] ?? 0;
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Consumer<UserDataProvider>(
+          builder: (context, userDataProvider, child) {
+            final userPoints = userDataProvider.points;
+            final userTier = UserTier.values[userDataProvider.userData?['tier'] ?? 0];
+            final dailyStreak = userDataProvider.userData?['dailyStreak'] ?? 0;
+            final adsWatchedToday = userDataProvider.userData?['adsWatchedToday'] ?? 0;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  PointsCard(points: userPoints, userTier: userTier),
-                  const SizedBox(height: 20),
-                  StreakIndicator(dailyStreak: dailyStreak, adsWatchedToday: adsWatchedToday),
-                  const SizedBox(height: 30),
-                  _buildWatchAdButton(theme, userTier, adsWatchedToday >= 10),
-                  const SizedBox(height: 20),
-                  _buildGetHintButton(theme),
-                  const SizedBox(height: 20),
-                  _buildNavigationButtons(context, theme),
-                ],
-              );
-            },
-          ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PointsCard(points: userPoints, userTier: userTier),
+                const SizedBox(height: 20),
+                StreakIndicator(dailyStreak: dailyStreak, adsWatchedToday: adsWatchedToday),
+                const SizedBox(height: 20),
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: WebViewWidget(controller: _webViewController),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildWatchAdButton(theme, userTier, adsWatchedToday >= 10),
+                        const SizedBox(height: 20),
+                        _buildGetHintButton(theme),
+                        const SizedBox(height: 20),
+                        _buildNavigationButtons(context, theme),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       bottomNavigationBar: _bannerAd != null
           ? SizedBox(
-        width: _bannerAd!.size.width.toDouble(),
-        height: _bannerAd!.size.height.toDouble(),
-        child: AdWidget(ad: _bannerAd!),
-      )
+              width: _bannerAd!.size.width.toDouble(),
+              height: _bannerAd!.size.height.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
+            )
           : null,
     );
   }
@@ -240,10 +297,10 @@ class _HomeScreenState extends State<HomeScreen> {
           : () => _showRewardedAd(userTier),
       icon: _isAdShowing
           ? const SizedBox(
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
-      )
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+            )
           : const Icon(Icons.movie_creation_outlined),
       label: Text(
         isAdLimitReached
@@ -260,10 +317,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onPressed: _isHintAdShowing ? null : _showRewardedInterstitialAd,
       icon: _isHintAdShowing
           ? const SizedBox(
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
-      )
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+            )
           : const Icon(Icons.lightbulb_outline),
       label: Text(
         _isHintAdShowing ? 'Loading Hint...' : 'Watch Ad for a Hint',
