@@ -44,7 +44,6 @@ dependencies:
   google_fonts: ^6.3.1
   intl: ^0.20.2
   connectivity_plus: ^6.1.5
-  share_plus: ^11.1.0
 
 dev_dependencies:
   flutter_test:

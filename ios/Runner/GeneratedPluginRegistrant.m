@@ -48,12 +48,6 @@
 @import path_provider_foundation;
 #endif
 
-#if __has_include(<share_plus/FPPSharePlusPlugin.h>)
-#import <share_plus/FPPSharePlusPlugin.h>
-#else
-@import share_plus;
-#endif
-
 #if __has_include(<webview_flutter_wkwebview/WebViewFlutterPlugin.h>)
 #import <webview_flutter_wkwebview/WebViewFlutterPlugin.h>
 #else
@@ -70,7 +64,6 @@
   [FLTGoogleMobileAdsPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTGoogleMobileAdsPlugin"]];
   [FLTGoogleSignInPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTGoogleSignInPlugin"]];
   [PathProviderPlugin registerWithRegistrar:[registry registrarForPlugin:@"PathProviderPlugin"]];
-  [FPPSharePlusPlugin registerWithRegistrar:[registry registrarForPlugin:@"FPPSharePlusPlugin"]];
   [WebViewFlutterPlugin registerWithRegistrar:[registry registrarForPlugin:@"WebViewFlutterPlugin"]];
 }
 

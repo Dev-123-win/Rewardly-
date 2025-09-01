@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 
 class ReferralScreen extends StatelessWidget {
@@ -67,8 +66,6 @@ class ReferralScreen extends StatelessWidget {
               _buildReferralCodeCard(context, theme, referralCode),
               const SizedBox(height: 32),
               _buildHowItWorks(theme),
-              const SizedBox(height: 32),
-              _buildShareButton(context, referralCode),
             ],
           ),
         );
@@ -188,30 +185,6 @@ class ReferralScreen extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildShareButton(BuildContext context, String referralCode) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      onPressed: () {
-        if (referralCode != 'Generating...') {
-          SharePlus.instance.share(
-            'Join me on Rewardly and get bonus points! Use my referral code: $referralCode\n\nGet the app here: [App Store/Play Store Link]',
-          );
-        }
-      },
-      icon: const Icon(Icons.share, size: 28),
-      label: Text(
-        'Share Your Code',
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onPrimary,
-        ),
-      ),
     );
   }
 }
