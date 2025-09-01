@@ -1,29 +1,32 @@
-# Rewardly: App Blueprint
+# Project Blueprint
 
 ## Overview
 
-Rewardly is a Flutter-based mobile application that allows users to earn points by watching rewarded ads. These points can then be exchanged for real-world rewards. The app is designed with a clean, modern interface and leverages Firebase for authentication, data storage, and administration.
+This document outlines the style, design, and features of the Rewardly Flutter application. It serves as a single source of truth for the application's current state and future development plans.
 
-## Key Features
+## Style and Design
 
-- **User Authentication**: Secure sign-up and login functionality using Firebase Authentication.
-- **Rewarded Ads**: Integration with Google Mobile Ads to allow users to watch ads and earn points.
-- **Point System**: A simple point-based system where users accumulate points for each ad watched.
-- **Withdrawal System**: Users can request withdrawals of their earned points.
-- **Withdrawal History**: Users can view a history of their past withdrawal requests, including the status of each request (pending, approved, or denied).
-- **Admin Panel**: A dedicated screen for administrators to review and manage pending withdrawal requests.
-- **Admin Withdrawal History**: Administrators can view a complete history of all withdrawal requests, including those that have been approved or denied.
+*   **Theming**: The app uses a Material 3 theme with a centralized `ThemeData` object. It supports both light and dark modes with a theme toggle.
+*   **Color Scheme**: A modern and energetic color palette is generated from a primary seed color. The primary color is a vibrant blue.
+*   **Typography**: The app uses the `google_fonts` package for a clean and readable look, with `Roboto Slab` for display/headline styles and `Inter` for body text.
+*   **UI Components**: Cards have a prominent shadow to create a "lifted" effect. Interactive elements have a subtle glow.
+*   **Background**: A subtle noise texture is applied to the main background for a premium, tactile feel.
 
-## Technical Implementation
+## Features
 
-- **Frontend**: The app is built with Flutter, providing a cross-platform solution for both Android and iOS.
-- **Backend**: Firebase is used for all backend services, including:
-    - **Authentication**: Manages user accounts and secures access to the app.
-    - **Cloud Firestore**: Stores user data, including points and withdrawal requests.
-- **Routing**: The app uses the `go_router` package for declarative navigation, ensuring a clean and organized routing structure.
-- **State Management**: The `provider` package is used for simple, efficient state management.
-- **Theming**: A custom theme is implemented with support for both light and dark modes, providing a consistent and visually appealing user experience.
+*   **User Authentication**: Users can sign up, log in, and log out using Firebase Authentication.
+*   **Home Screen**: Displays the user's current point balance and provides navigation to other screens.
+*   **Profile Screen**: Shows the user's email, point balance, and provides links to withdrawal actions.
+*   **Store Screen**: A grid view of items that can be redeemed with points.
+*   **Withdrawal Screen**: A form for users to request a withdrawal of their points.
+*   **Withdrawal History**: A list of past withdrawal requests with their status.
+*   **Routing**: The app uses the `go_router` package for declarative navigation and deep linking.
 
-## Current Status
+## Current Plan
 
-The application is in a stable state with all major features implemented. The codebase has been thoroughly analyzed and all errors and warnings have been resolved. The next steps will involve further testing, bug fixing, and the addition of new features as required.
+1.  **Refine Color Scheme**: Update the primary color from `deepPurple` to a more modern `blue`.
+2.  **Enhance UI Components**: Increase the elevation and shadow of `Card` widgets to create a "lifted" look.
+3.  **Implement User-Friendly Error Handling**:
+    *   Add the `connectivity_plus` package to monitor network status.
+    *   Create a global, non-intrusive banner to inform the user when they are offline.
+4.  **Add Background Texture**: Apply a subtle noise texture to the app's background to enhance the visual design (pending finding a suitable asset or method).

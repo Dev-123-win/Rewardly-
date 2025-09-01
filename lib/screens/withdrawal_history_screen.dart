@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rewardly/widgets/rewardly_app_bar.dart';
 import 'package:intl/intl.dart';
 
 class WithdrawalHistoryScreen extends StatelessWidget {
@@ -8,13 +9,11 @@ class WithdrawalHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Withdrawal History'),
-      ),
+      appBar: const RewardlyAppBar(),
       body: currentUser == null
           ? const Center(child: Text('Please log in to view your history.'))
           : StreamBuilder<QuerySnapshot>(
@@ -27,48 +26,17 @@ class WithdrawalHistoryScreen extends StatelessWidget {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Something went wrong.'));
-                }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('You have no withdrawal history.'));
+                  return _buildEmptyState(context, theme);
                 }
-
-                final withdrawalDocs = snapshot.data!.docs;
 
                 return ListView.builder(
-                  itemCount: withdrawalDocs.length,
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: snapshot.data!.docs.length,
                   itemBuilder: (context, index) {
-                    final withdrawal = withdrawalDocs[index];
-                    final data = withdrawal.data() as Map<String, dynamic>;
-                    final amount = data['amount'] as int;
-                    final status = data['status'] as String;
-                    final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
-
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                      elevation: 4.0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: Icon(
-                          _getStatusIcon(status),
-                          color: _getStatusColor(status, theme),
-                        ),
-                        title: Text('Amount: $amount points', style: theme.textTheme.titleMedium),
-                        subtitle: Text(
-                          timestamp != null
-                              ? 'Requested on ${DateFormat.yMMMd().add_jm().format(timestamp)}'
-                              : 'Date not available',
-                        ),
-                        trailing: Text(
-                          status.toUpperCase(),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: _getStatusColor(status, theme),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
+                    final doc = snapshot.data!.docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return _buildHistoryCard(context, theme, data);
                   },
                 );
               },
@@ -76,27 +44,91 @@ class WithdrawalHistoryScreen extends StatelessWidget {
     );
   }
 
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'approved':
-        return Icons.check_circle;
-      case 'denied':
-        return Icons.cancel;
-      case 'pending':
-      default:
-        return Icons.hourglass_empty;
-    }
+  Widget _buildEmptyState(BuildContext context, ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 80,
+            color: theme.colorScheme.secondary,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'No withdrawals yet',
+            style: theme.textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Your withdrawal history will appear here.',
+            style: theme.textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 
-  Color _getStatusColor(String status, ThemeData theme) {
-    switch (status) {
+  Widget _buildHistoryCard(
+      BuildContext context, ThemeData theme, Map<String, dynamic> data) {
+    final amount = data['amount'] as int? ?? 0;
+    final status = data['status'] as String? ?? 'Unknown';
+    final timestamp = data['timestamp'] as Timestamp?;
+    final date = timestamp != null
+        ? DateFormat.yMMMd().add_jm().format(timestamp.toDate())
+        : 'N/A';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$amount Points',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  date,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color?.withAlpha(178),
+                  ),
+                ),
+              ],
+            ),
+            Chip(
+              label: Text(status.toUpperCase()),
+              backgroundColor: _getStatusColor(status).withAlpha(25),
+              labelStyle: TextStyle(
+                color: _getStatusColor(status),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
       case 'approved':
         return Colors.green;
       case 'denied':
         return Colors.red;
-      case 'pending':
       default:
-        return theme.colorScheme.onSurface.withAlpha(178);
+        return Colors.grey;
     }
   }
 }

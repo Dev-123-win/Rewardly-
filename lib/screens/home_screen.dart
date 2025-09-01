@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rewardly/services/ad_service.dart';
+import 'package:rewardly/widgets/points_card.dart';
+import 'package:rewardly/widgets/rewardly_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,51 +68,127 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          if (_isAdmin)
-            IconButton(
-              icon: const Icon(Icons.admin_panel_settings),
-              onPressed: () {
-                context.go('/admin');
-              },
-              tooltip: 'Admin',
-            ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              context.go('/profile');
-            },
-            tooltip: 'Profile',
+      appBar: const RewardlyAppBar(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (user != null)
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final userPoints = (snapshot.data!.data()
+                        as Map<String, dynamic>?)?['points'] as int? ??
+                        0;
+                    return PointsCard(points: userPoints);
+                  },
+                ),
+              const SizedBox(height: 30),
+              _buildWatchAdButton(theme),
+              const SizedBox(height: 20),
+              _buildNavigationButtons(context, theme),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-            },
-            tooltip: 'Logout',
-          ),
-        ],
+        ),
       ),
-      body: Center(
-        child: _isAdShowing
-            ? const CircularProgressIndicator()
-            : ElevatedButton.icon(
-                onPressed: _showRewardedAd,
-                icon: const Icon(Icons.movie),
-                label: const Text('Watch an Ad to Earn Points'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30.0,
-                    vertical: 15.0,
-                  ),
-                  textStyle: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+    );
+  }
+
+  Widget _buildWatchAdButton(ThemeData theme) {
+    return ElevatedButton.icon(
+      onPressed: _isAdShowing ? null : _showRewardedAd,
+      icon: _isAdShowing
+          ? const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 3),
+      )
+          : const Icon(Icons.movie_creation_outlined),
+      label: Text(
+        _isAdShowing ? 'Loading Ad...' : 'Watch Ad, Earn Points',
+        style: theme.textTheme.labelLarge?.copyWith(
+          fontSize: 18,
+          color: Colors.white,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _buildNavigationButtons(BuildContext context, ThemeData theme) {
+    return Column(
+      children: [
+        _buildNavButton(
+          context,
+          icon: Icons.store_outlined,
+          label: 'Go to Store',
+          onPressed: () => context.go('/store'),
+        ),
+        const SizedBox(height: 15),
+        _buildNavButton(
+          context,
+          icon: Icons.history_outlined,
+          label: 'Withdrawal History',
+          onPressed: () => context.go('/withdrawal_history'),
+        ),
+        const SizedBox(height: 15),
+        _buildNavButton(
+          context,
+          icon: Icons.group_add_outlined,
+          label: 'Refer a Friend',
+          onPressed: () => context.go('/referral'),
+        ),
+        if (_isAdmin)
+          Padding(
+            padding: const EdgeInsets.only(top: 15.0),
+            child: _buildNavButton(
+              context,
+              icon: Icons.admin_panel_settings_outlined,
+              label: 'Admin Panel',
+              onPressed: () => context.go('/admin'),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNavButton(BuildContext context, {required IconData icon, required String label, required VoidCallback onPressed}) {
+    final theme = Theme.of(context);
+    return Card(
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 28, color: theme.primaryColor),
+              const SizedBox(width: 16),
+              Text(
+                label,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+            ],
+          ),
+        ),
       ),
     );
   }
