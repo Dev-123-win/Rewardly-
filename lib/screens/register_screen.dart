@@ -82,6 +82,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'referralCode': _generateReferralCode(),
         'referredBy': referredBy.isNotEmpty ? referrerDocRef!.id : null,
         'createdAt': FieldValue.serverTimestamp(),
+        'adsWatchedToday': 0,
+        'dailyStreak': 0,
+        'lastAdWatchedDate': Timestamp.fromDate(DateTime(2000)), // A date in the past
       });
 
       // 2. Reward the referrer if one exists

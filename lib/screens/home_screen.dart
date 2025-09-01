@@ -9,6 +9,7 @@ import 'package:rewardly/providers/user_data_provider.dart';
 import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/widgets/points_card.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
+import 'package:rewardly/widgets/streak_indicator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -61,27 +62,76 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _handleAdWatched() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userData = await userDocRef.get();
+    final data = userData.data() as Map<String, dynamic>;
+
+    final today = DateTime.now();
+    final lastAdDate = (data['lastAdWatchedDate'] as Timestamp).toDate();
+    final isNewDay = today.difference(lastAdDate).inDays > 0;
+
+    int adsWatchedToday = data['adsWatchedToday'];
+    int dailyStreak = data['dailyStreak'];
+
+    if (isNewDay) {
+      if (today.difference(lastAdDate).inDays > 1) {
+        dailyStreak = 0;
+      }
+      adsWatchedToday = 0;
+    }
+
+    if (adsWatchedToday >= 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have reached your daily ad limit.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    adsWatchedToday++;
+    final pointsToAward = _getPointsForTier(UserTier.values[data['tier']]);
+
+    if (adsWatchedToday == 5) {
+      dailyStreak++;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Daily goal complete! Your streak is now $dailyStreak days.'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    UserTier newTier = UserTier.values[data['tier']];
+    if (dailyStreak >= 7 && newTier == UserTier.bronze) {
+      newTier = UserTier.silver;
+      _showTierPromotionDialog('Silver');
+    } else if (dailyStreak >= 30 && newTier == UserTier.silver) {
+      newTier = UserTier.gold;
+      _showTierPromotionDialog('Gold');
+    }
+
+    await userDocRef.update({
+      'points': FieldValue.increment(pointsToAward),
+      'adsWatchedToday': adsWatchedToday,
+      'dailyStreak': dailyStreak,
+      'lastAdWatchedDate': Timestamp.now(),
+      'tier': newTier.index,
+    });
+  }
+
   void _showRewardedAd(UserTier userTier) {
     setState(() {
       _isAdShowing = true;
     });
 
     _adService.showRewardedAd(
-      onUserEarnedReward: (reward) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          final pointsToAward = _getPointsForTier(userTier);
-          FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-            'points': FieldValue.increment(pointsToAward),
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('You earned $pointsToAward points!'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      },
+      onUserEarnedReward: (reward) => _handleAdWatched(),
       onAdDismissed: () {
         setState(() {
           _isAdShowing = false;
@@ -112,14 +162,30 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showTierPromotionDialog(String tierName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Congratulations!'),
+        content: Text('You have been promoted to the $tierName tier!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Awesome!'),
+          ),
+        ],
+      ),
+    );
+  }
+
   int _getPointsForTier(UserTier tier) {
     switch (tier) {
       case UserTier.gold:
-        return 20;
+        return 60;
       case UserTier.silver:
-        return 15;
+        return 54;
       case UserTier.bronze:
-        return 10;
+        return 48;
     }
   }
 
@@ -136,13 +202,17 @@ class _HomeScreenState extends State<HomeScreen> {
             builder: (context, userDataProvider, child) {
               final userPoints = userDataProvider.points;
               final userTier = UserTier.values[userDataProvider.userData?['tier'] ?? 0];
+              final dailyStreak = userDataProvider.userData?['dailyStreak'] ?? 0;
+              final adsWatchedToday = userDataProvider.userData?['adsWatchedToday'] ?? 0;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   PointsCard(points: userPoints, userTier: userTier),
+                  const SizedBox(height: 20),
+                  StreakIndicator(dailyStreak: dailyStreak, adsWatchedToday: adsWatchedToday),
                   const SizedBox(height: 30),
-                  _buildWatchAdButton(theme, userTier),
+                  _buildWatchAdButton(theme, userTier, adsWatchedToday >= 10),
                   const SizedBox(height: 20),
                   _buildGetHintButton(theme),
                   const SizedBox(height: 20),
@@ -163,9 +233,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWatchAdButton(ThemeData theme, UserTier userTier) {
+  Widget _buildWatchAdButton(ThemeData theme, UserTier userTier, bool isAdLimitReached) {
     return ElevatedButton.icon(
-      onPressed: _isAdShowing ? null : () => _showRewardedAd(userTier),
+      onPressed: _isAdShowing || isAdLimitReached
+          ? null
+          : () => _showRewardedAd(userTier),
       icon: _isAdShowing
           ? const SizedBox(
         width: 24,
@@ -174,7 +246,11 @@ class _HomeScreenState extends State<HomeScreen> {
       )
           : const Icon(Icons.movie_creation_outlined),
       label: Text(
-        _isAdShowing ? 'Loading Ad...' : 'Watch Ad, Earn Points',
+        isAdLimitReached
+            ? 'Daily Limit Reached'
+            : _isAdShowing
+                ? 'Loading Ad...'
+                : 'Watch Ad, Earn Points',
       ),
     );
   }

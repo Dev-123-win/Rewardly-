@@ -34,6 +34,7 @@ class PointsCard extends StatelessWidget {
     final theme = Theme.of(context);
     final tierName = _getTierName(userTier);
     final tierColor = _getTierColor(userTier, theme);
+    final rupees = (points / 1000).toStringAsFixed(2);
 
     return Card(
       elevation: 12,
@@ -69,6 +70,13 @@ class PointsCard extends StatelessWidget {
               style: theme.textTheme.displayLarge?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '≈ ₹$rupees',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: Colors.white.withAlpha(200),
               ),
             ),
             const SizedBox(height: 20),

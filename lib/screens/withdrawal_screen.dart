@@ -79,6 +79,11 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              '(1000 points = ₹1)',
+              style: theme.textTheme.titleMedium,
+            )
           ],
         ),
       ),
