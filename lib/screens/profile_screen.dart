@@ -204,6 +204,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           label: 'Refer a Friend',
           onTap: () => context.go('/referral'),
         ),
+        const SizedBox(height: 16),
+        _buildActionButton(
+          context,
+          icon: Icons.description_outlined,
+          label: 'Terms and Conditions',
+          onTap: () => context.go('/terms'),
+        ),
+        const SizedBox(height: 16),
+        _buildActionButton(
+          context,
+          icon: Icons.privacy_tip_outlined,
+          label: 'Privacy Policy',
+          onTap: () => context.go('/privacy-policy'),
+        ),
         if (isAdmin)
           Padding(
             padding: const EdgeInsets.only(top: 16.0),

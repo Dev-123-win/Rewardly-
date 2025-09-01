@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:rewardly/models/user_tier.dart';
 import 'package:rewardly/providers/user_data_provider.dart';
@@ -19,13 +20,33 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AdService _adService = AdService();
   bool _isAdShowing = false;
+  bool _isHintAdShowing = false;
   bool _isAdmin = false;
+  BannerAd? _bannerAd;
 
   @override
   void initState() {
     super.initState();
     _adService.loadRewardedAd();
+    _adService.loadRewardedInterstitialAd();
     _checkAdminStatus();
+    _loadBannerAd();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: AdService.bannerAdUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          setState(() {});
+        },
+        onAdFailedToLoad: (ad, err) {
+          ad.dispose();
+        },
+      ),
+    )..load();
   }
 
   Future<void> _checkAdminStatus() async {
@@ -69,6 +90,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showRewardedInterstitialAd() {
+    setState(() {
+      _isHintAdShowing = true;
+    });
+
+    _adService.showRewardedInterstitialAd(
+      onUserEarnedReward: (reward) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hint: Complete your profile to earn extra points!'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      },
+      onAdDismissed: () {
+        setState(() {
+          _isHintAdShowing = false;
+        });
+      },
+    );
+  }
+
   int _getPointsForTier(UserTier tier) {
     switch (tier) {
       case UserTier.gold:
@@ -101,6 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 30),
                   _buildWatchAdButton(theme, userTier),
                   const SizedBox(height: 20),
+                  _buildGetHintButton(theme),
+                  const SizedBox(height: 20),
                   _buildNavigationButtons(context, theme),
                 ],
               );
@@ -108,6 +153,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: _bannerAd != null
+          ? SizedBox(
+        width: _bannerAd!.size.width.toDouble(),
+        height: _bannerAd!.size.height.toDouble(),
+        child: AdWidget(ad: _bannerAd!),
+      )
+          : null,
     );
   }
 
@@ -127,16 +179,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildGetHintButton(ThemeData theme) {
+    return ElevatedButton.icon(
+      onPressed: _isHintAdShowing ? null : _showRewardedInterstitialAd,
+      icon: _isHintAdShowing
+          ? const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+      )
+          : const Icon(Icons.lightbulb_outline),
+      label: Text(
+        _isHintAdShowing ? 'Loading Hint...' : 'Watch Ad for a Hint',
+      ),
+    );
+  }
+
   Widget _buildNavigationButtons(BuildContext context, ThemeData theme) {
     return Column(
       children: [
-        _buildNavButton(
-          context,
-          icon: Icons.store_outlined,
-          label: 'Go to Store',
-          onPressed: () => context.go('/store'),
-        ),
-        const SizedBox(height: 15),
         _buildNavButton(
           context,
           icon: Icons.history_outlined,
@@ -189,5 +250,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
   }
 }

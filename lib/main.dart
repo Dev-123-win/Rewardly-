@@ -10,13 +10,15 @@ import 'package:provider/provider.dart';
 import 'package:rewardly/providers/user_data_provider.dart';
 import 'package:rewardly/screens/admin_screen.dart';
 import 'package:rewardly/screens/home_screen.dart';
-import 'package:rewardly/screens/store_screen.dart';
 import 'package:rewardly/screens/profile_screen.dart';
 import 'package:rewardly/screens/login_screen.dart';
 import 'package:rewardly/screens/register_screen.dart';
+import 'package:rewardly/screens/terms_screen.dart';
+import 'package:rewardly/screens/privacy_policy_screen.dart';
 import 'package:rewardly/screens/withdrawal_screen.dart';
 import 'package:rewardly/screens/withdrawal_history_screen.dart';
 import 'package:rewardly/screens/referral_screen.dart';
+import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/services/notification_service.dart';
 import 'package:rewardly/services/remote_config_service.dart';
 import 'package:rewardly/widgets/noise_background.dart';
@@ -24,6 +26,7 @@ import 'firebase_options.dart';
 import 'package:go_router/go_router.dart';
 
 final remoteConfigService = RemoteConfigService();
+final adService = AdService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +43,7 @@ void main() async {
   await MobileAds.instance.initialize();
   await NotificationService().initNotifications();
   await remoteConfigService.initialize();
+  adService.loadAppOpenAd();
 
   runApp(
     ChangeNotifierProvider(
@@ -57,10 +61,6 @@ final _router = GoRouter(
       builder: (context, state) => const MainScreen(),
       routes: [
         GoRoute(
-          path: 'store',
-          builder: (context, state) => const StoreScreen(),
-        ),
-        GoRoute(
           path: 'profile',
           builder: (context, state) => const ProfileScreen(),
         ),
@@ -71,6 +71,14 @@ final _router = GoRouter(
         GoRoute(
           path: 'register',
           builder: (context, state) => const RegisterScreen(),
+        ),
+        GoRoute(
+          path: 'terms',
+          builder: (context, state) => const TermsScreen(),
+        ),
+        GoRoute(
+          path: 'privacy-policy',
+          builder: (context, state) => const PrivacyPolicyScreen(),
         ),
         GoRoute(
           path: 'withdrawal',
@@ -103,10 +111,13 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   bool _isOffline = false;
+  late AppLifecycleReactor _appLifecycleReactor;
 
   @override
   void initState() {
     super.initState();
+    _appLifecycleReactor = AppLifecycleReactor(adService: adService);
+    _appLifecycleReactor.listenToAppStateChanges();
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((result) {
       setState(() {
@@ -216,7 +227,6 @@ class _MainScreenState extends State<MainScreen> {
 
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
-    StoreScreen(),
     ProfileScreen(),
   ];
 
@@ -240,10 +250,6 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.store),
-            label: 'Store',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),
@@ -252,5 +258,23 @@ class _MainScreenState extends State<MainScreen> {
         onTap: _onItemTapped,
       ),
     );
+  }
+}
+
+class AppLifecycleReactor {
+  final AdService adService;
+
+  AppLifecycleReactor({required this.adService});
+
+  void listenToAppStateChanges() {
+    AppStateEventNotifier.startListening();
+    AppStateEventNotifier.appStateStream
+        .forEach((state) => _onAppStateChanged(state));
+  }
+
+  void _onAppStateChanged(AppState appState) {
+    if (appState == AppState.foreground) {
+      adService.showAppOpenAd();
+    }
   }
 }

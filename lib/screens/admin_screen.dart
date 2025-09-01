@@ -1,1 +1,263 @@
-import \'package:flutter/material.dart\';\nimport \'package:firebase_auth/firebase_auth.dart\';\nimport \'package:cloud_firestore/cloud_firestore.dart\';\n\nclass AdminScreen extends StatelessWidget {\n  const AdminScreen({super.key});\n\n  @override\n  Widget build(BuildContext context) {\n    return DefaultTabController(\n      length: 2,\n      child: Scaffold(\n        appBar: AppBar(\n          title: const Text(\'Admin Panel\'),\n          bottom: const TabBar(\n            tabs: [\n              Tab(icon: Icon(Icons.people), text: \'Users\'),\n              Tab(icon: Icon(Icons.request_page), text: \'Withdrawals\'),\n            ],\n          ),\n        ),\n        body: const TabBarView(\n          children: [\n            UserList(),\n            WithdrawalList(),\n          ],\n        ),\n      ),\n    );\n  }\n}\n\nclass UserList extends StatelessWidget {\n  const UserList({super.key});\n\n  @override\n  Widget build(BuildContext context) {\n    return StreamBuilder<QuerySnapshot>(\n      stream: FirebaseFirestore.instance.collection(\'users\').snapshots(),\n      builder: (context, snapshot) {\n        if (snapshot.connectionState == ConnectionState.waiting) {\n          return const Center(child: CircularProgressIndicator());\n        }\n        if (!snapshot.hasData) {\n          return const Center(child: Text(\'No users found.\'));\n        }\n\n        final users = snapshot.data!.docs;\n\n        return ListView.builder(\n          itemCount: users.length,\n          itemBuilder: (context, index) {\n            final user = users[index];\n            return ListTile(\n              title: Text(user[\'email\'] ?? \'No email\'),\n              subtitle: Text(\'Points: \${user[\'points\']}\'),\n            );\n          },\n        );\n      },\n    );\n  }\n}\n\nclass WithdrawalList extends StatelessWidget {\n  const WithdrawalList({super.key});\n\n  @override\n  Widget build(BuildContext context) {\n    return StreamBuilder<QuerySnapshot>(\n      stream: FirebaseFirestore.instance\n          .collection(\'withdrawals\')\n          .where(\'status\', isEqualTo: \'pending\')\n          .snapshots(),\n      builder: (context, snapshot) {\n        if (snapshot.connectionState == ConnectionState.waiting) {\n          return const Center(child: CircularProgressIndicator());\n        }\n        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {\n          return const Center(child: Text(\'No pending withdrawals.\'));\n        }\n\n        final withdrawals = snapshot.data!.docs;\n\n        return ListView.builder(\n          itemCount: withdrawals.length,\n          itemBuilder: (context, index) {\n            final withdrawal = withdrawals[index];\n            final amount = withdrawal[\'amount\'];\n            final userId = withdrawal[\'userId\'];\n\n            return ListTile(\n              title: Text(\'Amount: \$amount\'),\n              subtitle: Text(\'User ID: \$userId\'),\n              trailing: Row(\n                mainAxisSize: MainAxisSize.min,\n                children: [\n                  IconButton(\n                    icon: const Icon(Icons.check, color: Colors.green),\n                    onPressed: () {\n                      // Approve withdrawal\n                      FirebaseFirestore.instance\n                          .collection(\'withdrawals\')\n                          .doc(withdrawal.id)\n                          .update({\'status\': \'approved\'});\n                    },\n                  ),\n                  IconButton(\n                    icon: const Icon(Icons.close, color: Colors.red),\n                    onPressed: () {\n                      // Deny withdrawal\n                      FirebaseFirestore.instance\n                          .collection(\'withdrawals\')\n                          .doc(withdrawal.id)\n                          .update({\'status\': \'denied\'});\n                    },\n                  ),\n                ],\n              ),\n            );\n          },\n        );\n      },\n    );\n  }\n}\n
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class AdminScreen extends StatelessWidget {
+  const AdminScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Admin Panel'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.people), text: 'Users'),
+              Tab(icon: Icon(Icons.request_page), text: 'Withdrawals'),
+            ],
+          ),
+        ),
+        body: const TabBarView(
+          children: [
+            UserList(),
+            WithdrawalList(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class UserList extends StatefulWidget {
+  const UserList({super.key});
+
+  @override
+  State<UserList> createState() => _UserListState();
+}
+
+class _UserListState extends State<UserList> {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  final _searchController = TextEditingController();
+  List<DocumentSnapshot> _users = [];
+  DocumentSnapshot? _lastDocument;
+  bool _isLoading = false;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+    _searchController.addListener(() {
+      _onSearchChanged(_searchController.text);
+    });
+  }
+
+  Future<void> _fetchUsers({bool loadMore = false}) async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    Query query = FirebaseFirestore.instance.collection('users').orderBy('email').limit(20);
+    if (loadMore && _lastDocument != null) {
+      query = query.startAfterDocument(_lastDocument!);
+    }
+
+    if (_searchController.text.isNotEmpty) {
+      query = query.where('email', isGreaterThanOrEqualTo: _searchController.text).where('email', isLessThan: '${_searchController.text}z');
+    }
+
+    final querySnapshot = await query.get();
+    if (querySnapshot.docs.isEmpty) {
+      setState(() {
+        _hasMore = false;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    if (loadMore) {
+      _users.addAll(querySnapshot.docs);
+    } else {
+      _users = querySnapshot.docs;
+    }
+
+    _lastDocument = querySnapshot.docs.last;
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  void _onSearchChanged(String query) {
+    if (_users.isNotEmpty) {
+      setState(() {
+        _users = [];
+        _lastDocument = null;
+        _hasMore = true;
+      });
+    }
+    _fetchUsers();
+  }
+
+  Future<void> _toggleAdmin(String uid, bool currentAdminStatus) async {
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .update({'isAdmin': !currentAdminStatus});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              labelText: 'Search by email',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _users.length + (_hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == _users.length) {
+                if (_isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return TextButton(onPressed: () => _fetchUsers(loadMore: true), child: const Text('Load More'));
+              }
+
+              final user = _users[index];
+              final userData = user.data() as Map<String, dynamic>;
+              final email = userData['email'] ?? 'No email';
+              final points = userData['points'] ?? 0;
+              final isAdmin = userData.containsKey('isAdmin') && userData['isAdmin'] == true;
+              final isCurrentUser = user.id == currentUser?.uid;
+
+              return ListTile(
+                title: Text(email),
+                subtitle: Text('Points: $points'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(isAdmin ? 'Admin' : 'User'),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: isAdmin,
+                      onChanged: isCurrentUser ? null : (value) => _toggleAdmin(user.id, isAdmin),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class WithdrawalList extends StatefulWidget {
+  const WithdrawalList({super.key});
+
+  @override
+  State<WithdrawalList> createState() => _WithdrawalListState();
+}
+
+class _WithdrawalListState extends State<WithdrawalList> {
+  List<DocumentSnapshot> _withdrawals = [];
+  DocumentSnapshot? _lastDocument;
+  bool _isLoading = false;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchWithdrawals();
+  }
+
+  Future<void> _fetchWithdrawals({bool loadMore = false}) async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    Query query = FirebaseFirestore.instance
+        .collection('withdrawals')
+        .where('status', isEqualTo: 'pending')
+        .orderBy('timestamp', descending: true)
+        .limit(20);
+
+    if (loadMore && _lastDocument != null) {
+      query = query.startAfterDocument(_lastDocument!);
+    }
+
+    final querySnapshot = await query.get();
+    if (querySnapshot.docs.isEmpty) {
+      setState(() {
+        _hasMore = false;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    if (loadMore) {
+      _withdrawals.addAll(querySnapshot.docs);
+    } else {
+      _withdrawals = querySnapshot.docs;
+    }
+
+    _lastDocument = querySnapshot.docs.last;
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: _withdrawals.length + (_hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == _withdrawals.length) {
+          if (_isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return TextButton(onPressed: () => _fetchWithdrawals(loadMore: true), child: const Text('Load More'));
+        }
+
+        final withdrawal = _withdrawals[index];
+        final amount = withdrawal['amount'];
+        final userId = withdrawal['userId'];
+
+        return ListTile(
+          title: Text('Amount: $amount'),
+          subtitle: Text('User ID: $userId'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.check, color: Colors.green),
+                onPressed: () {
+                  FirebaseFirestore.instance.collection('withdrawals').doc(withdrawal.id).update({'status': 'approved'});
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red),
+                onPressed: () {
+                  FirebaseFirestore.instance.collection('withdrawals').doc(withdrawal.id).update({'status': 'denied'});
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

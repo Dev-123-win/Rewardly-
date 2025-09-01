@@ -1,28 +1,33 @@
-# Rewardly App Blueprint
+# Rewardly Blueprint
 
 ## Overview
 
-Rewardly is a mobile application designed to help businesses create and manage customer loyalty programs. The app allows users to earn points for purchases, redeem rewards, and receive personalized offers. It also includes features for social sharing and referrals.
-
-## Style and Design
-
-The app will adhere to Material Design 3 principles, with a modern and clean aesthetic. The color scheme will be based on a primary color of deep purple, with a vibrant and energetic look and feel. The typography will be based on the Oswald, Roboto, and Open Sans font families, and the app will use a variety of font sizes to create a clear visual hierarchy. The app will also make use of modern, interactive iconography, and UI components such as buttons, text fields, and cards will have a soft, deep shadow to create a sense of depth.
+Rewardly is a mobile application designed to reward users for their engagement. Users can earn points by completing various tasks, such as watching ads, and then redeem those points for cash through a withdrawal system.
 
 ## Features
 
-### Implemented
+### Core Features
 
-*   **Authentication:** Users can sign in with Google or create an account with email and password.
-*   **Home Screen:** Displays the user's current point balance and a list of available rewards.
-*   **Rewards Screen:** Displays a list of available rewards and allows users to redeem them.
-*   **Profile Screen:** Allows users to view and edit their profile information.
-*   **Referral Screen:** Displays the user's unique referral code and allows users to copy it to their clipboard. The share button has been temporarily removed to resolve analysis errors.
-*   **Theming:** The app supports both light and dark themes, and users can toggle between them.
-*   **Navigation:** The app uses a bottom navigation bar to allow users to switch between the main screens.
-*   **Push Notifications:** The app is configured to receive push notifications.
-*   **Remote Config:** The app's title is remotely configurable.
+- **User Authentication:** Users can register and log in to the application.
+- **Points System:** Users earn points for completing tasks.
+- **Withdrawal System:** Users can withdraw their points for cash.
+- **Admin Panel:** Admins can manage users and withdrawals.
 
-### Current Plan
+### Monetization
 
-*   **Admin Panel:** I have created an admin panel that is only accessible to users with administrative privileges. The panel has a tabbed layout to switch between a list of all registered users and a list of pending withdrawal requests.
+- **App Open Ads:** Ads that appear when the app is opened.
+- **Interstitial Ads:** Full-screen ads that appear at natural transition points.
+- **Rewarded Interstitial Ads:** Ads that reward users for watching them.
+- **Native Ads:** Ads that are integrated into the app's content.
 
+### Admin Panel
+
+- **User Management:** Admins can view a list of users, search for users by email, and toggle their admin status.
+- **Withdrawal Management:** Admins can view a list of pending withdrawals and approve or deny them.
+
+## Current Plan
+
+- [x] Remove the Store feature.
+- [x] Update the UI to remove the "Go to Store" button.
+- [x] Update the router to remove the `/store` route.
+- [x] Update the `blueprint.md` file.

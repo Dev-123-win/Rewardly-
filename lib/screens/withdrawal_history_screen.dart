@@ -1,11 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
 import 'package:intl/intl.dart';
 
-class WithdrawalHistoryScreen extends StatelessWidget {
+class WithdrawalHistoryScreen extends StatefulWidget {
   const WithdrawalHistoryScreen({super.key});
+
+  @override
+  State<WithdrawalHistoryScreen> createState() =>
+      _WithdrawalHistoryScreenState();
+}
+
+class _WithdrawalHistoryScreenState extends State<WithdrawalHistoryScreen> {
+  final AdService _adService = AdService();
+
+  @override
+  void initState() {
+    super.initState();
+    _adService.loadInterstitialAd();
+  }
+
+  @override
+  void dispose() {
+    _adService.showInterstitialAd();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
