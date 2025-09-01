@@ -3,7 +3,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class AdService {
   RewardedAd? _rewardedAd;
 
-  static const String _adUnitId = 'ca-app-pub-3940256099942544/5224354917';
+  static const String _adUnitId = 'ca-app-pub-3863562453957252/7819438744';
 
   void loadRewardedAd() {
     RewardedAd.load(

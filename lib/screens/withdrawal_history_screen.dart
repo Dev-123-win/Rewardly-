@@ -96,7 +96,7 @@ class WithdrawalHistoryScreen extends StatelessWidget {
         return Colors.red;
       case 'pending':
       default:
-        return theme.colorScheme.onSurface.withOpacity(0.7);
+        return theme.colorScheme.onSurface.withAlpha(178);
     }
   }
 }
