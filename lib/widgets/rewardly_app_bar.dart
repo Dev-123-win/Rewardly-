@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rewardly/main.dart';
 
 class RewardlyAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
@@ -11,7 +12,7 @@ class RewardlyAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       automaticallyImplyLeading: false,
       title: Text(
-        title ?? 'Rewardly',
+        title ?? remoteConfigService.getString('app_bar_title'),
         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),

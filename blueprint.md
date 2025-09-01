@@ -16,10 +16,14 @@ The app will adhere to Material Design 3 principles, with a modern and clean aes
 *   **Home Screen:** Displays the user's current point balance and a list of available rewards.
 *   **Rewards Screen:** Displays a list of available rewards and allows users to redeem them.
 *   **Profile Screen:** Allows users to view and edit their profile information.
-*   **Referral Screen:** Displays the user's unique referral code and allows them to copy it to their clipboard.
+*   **Referral Screen:** Displays the user's unique referral code and allows users to copy it to their clipboard. The share button has been temporarily removed to resolve analysis errors.
 *   **Theming:** The app supports both light and dark themes, and users can toggle between them.
 *   **Navigation:** The app uses a bottom navigation bar to allow users to switch between the main screens.
+*   **Push Notifications:** The app is configured to receive push notifications.
+*   **Remote Config:** The app's title is remotely configurable.
 
 ### Current Plan
 
-*   **Re-implement Share Functionality:** Re-implement the share button on the referral screen using a different method to avoid the issues encountered with the `share_plus` package.
+*   **Reactive Architecture:** I will overhaul the app's architecture to use real-time listeners (`snapshots()`) and a state management solution (`provider`) to dramatically reduce Firestore read costs and improve the user experience.
+*   **App Check:** I will implement Firebase App Check to protect the app from abuse.
+*   **Budget Alerts:** I will guide the user on how to set up budget alerts in the Google Cloud Console.

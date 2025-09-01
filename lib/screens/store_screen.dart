@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rewardly/models/user_tier.dart';
+import 'package:rewardly/providers/user_data_provider.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-enum UserTier { bronze, silver, gold }
 
 class StoreItem {
   final String name;
@@ -55,7 +55,7 @@ class _StoreScreenState extends State<StoreScreen> {
       appBar: const RewardlyAppBar(),
       body: user == null
           ? _buildLoggedOutView(context, theme)
-          : _buildStoreView(context, theme, user),
+          : _buildStoreView(context, theme),
     );
   }
 
@@ -83,17 +83,11 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
-  Widget _buildStoreView(BuildContext context, ThemeData theme, User user) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final userData = snapshot.data!.data() as Map<String, dynamic>;
-        final userTier = UserTier.values[userData['tier'] ?? 0];
-        final userPoints = userData['points'] as int? ?? 0;
+  Widget _buildStoreView(BuildContext context, ThemeData theme) {
+    return Consumer<UserDataProvider>(
+      builder: (context, userDataProvider, child) {
+        final userTier = UserTier.values[userDataProvider.userData?['tier'] ?? 0];
+        final userPoints = userDataProvider.points;
 
         final filteredItems = _items.where((item) => userTier.index >= item.requiredTier.index).toList();
 

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:rewardly/models/user_tier.dart';
+import 'package:rewardly/providers/user_data_provider.dart';
 import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/widgets/points_card.dart';
 import 'package:rewardly/widgets/rewardly_app_bar.dart';
-import 'package:rewardly/screens/store_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -81,42 +83,28 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: const RewardlyAppBar(),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (user != null)
-                StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user.uid)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                    final userPoints = userData?['points'] as int? ?? 0;
-                    final userTier = UserTier.values[userData?['tier'] ?? 0];
+          child: Consumer<UserDataProvider>(
+            builder: (context, userDataProvider, child) {
+              final userPoints = userDataProvider.points;
+              final userTier = UserTier.values[userDataProvider.userData?['tier'] ?? 0];
 
-                    return Column(
-                      children: [
-                        PointsCard(points: userPoints, userTier: userTier),
-                        const SizedBox(height: 30),
-                        _buildWatchAdButton(theme, userTier),
-                      ],
-                    );
-                  },
-                ),
-              const SizedBox(height: 20),
-              _buildNavigationButtons(context, theme),
-            ],
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  PointsCard(points: userPoints, userTier: userTier),
+                  const SizedBox(height: 30),
+                  _buildWatchAdButton(theme, userTier),
+                  const SizedBox(height: 20),
+                  _buildNavigationButtons(context, theme),
+                ],
+              );
+            },
           ),
         ),
       ),

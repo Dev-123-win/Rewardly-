@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:provider/provider.dart';
+import 'package:rewardly/providers/user_data_provider.dart';
 import 'package:rewardly/screens/admin_screen.dart';
 import 'package:rewardly/screens/home_screen.dart';
 import 'package:rewardly/screens/store_screen.dart';
@@ -14,18 +17,36 @@ import 'package:rewardly/screens/register_screen.dart';
 import 'package:rewardly/screens/withdrawal_screen.dart';
 import 'package:rewardly/screens/withdrawal_history_screen.dart';
 import 'package:rewardly/screens/referral_screen.dart';
+import 'package:rewardly/services/notification_service.dart';
+import 'package:rewardly/services/remote_config_service.dart';
 import 'package:rewardly/widgets/noise_background.dart';
 import 'firebase_options.dart';
 import 'package:go_router/go_router.dart';
+
+final remoteConfigService = RemoteConfigService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await MobileAds.instance.initialize();
 
-  runApp(const MyApp());
+  // TODO: Replace with your own reCAPTCHA v3 site key
+  await FirebaseAppCheck.instance.activate(
+    webRecaptchaV3SiteKey: 'recaptcha-v3-site-key',
+    androidProvider: AndroidProvider.playIntegrity,
+  );
+
+  await MobileAds.instance.initialize();
+  await NotificationService().initNotifications();
+  await remoteConfigService.initialize();
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => UserDataProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 final _router = GoRouter(
@@ -106,7 +127,7 @@ class _MyAppState extends State<MyApp> {
 
     return MaterialApp.router(
       routerConfig: _router,
-      title: 'Rewardly',
+      title: remoteConfigService.getString('app_bar_title'),
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
