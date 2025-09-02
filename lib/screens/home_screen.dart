@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
@@ -49,9 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
           final command = parts[0];
           final value = parts.length > 1 ? parts[1] : null;
 
-          if (command == 'addPoints') {
-            final points = int.tryParse(value ?? '0') ?? 0;
-            _addGamePoints(points);
+          if (command == 'gameCoinsCollected') {
+            final coins = int.tryParse(value ?? '0') ?? 0;
+            if (coins > 0) {
+              _handleGameCoinsCollected(coins);
+            }
           } else if (command == 'watchAdToContinue') {
             _handleGameAd();
           }
@@ -87,88 +87,79 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-  
-  Future<void> _addGamePoints(int points) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    await userDocRef.update({'points': FieldValue.increment(points)});
+
+  int _getPointsForCoins(UserTier tier, int coins) {
+    double conversionRate;
+    switch (tier) {
+      case UserTier.gold:
+        conversionRate = 1.0; // 1000 coins = 1000 points
+        break;
+      case UserTier.silver:
+        conversionRate = 0.75; // 1000 coins = 750 points
+        break;
+      case UserTier.bronze:
+        conversionRate = 0.5; // 1000 coins = 500 points
+        break;
+    }
+    return (coins * conversionRate).floor();
+  }
+
+  Future<void> _handleGameCoinsCollected(int coins) async {
+    if (!mounted) return;
+    final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final userTier = _getUserTier(userDataProvider.userData);
+    final pointsToAward = _getPointsForCoins(userTier, coins);
+
+    if (pointsToAward > 0) {
+       final result = await userDataProvider.handleReward(pointsToAward);
+       if (mounted && result['success']) {
+         ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('You converted $coins coins into $pointsToAward points!'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Theme.of(context).primaryColor,
+            ),
+          );
+       }
+    }
   }
 
   void _handleGameAd() {
     _adService.showRewardedAd(
       onUserEarnedReward: (reward) {
-        // Tell the game to revive the player
         _webViewController.runJavaScript('revivePlayer()');
       },
-      onAdDismissed: () {
-        // Optional: handle ad dismissal if needed
-      },
+      onAdDismissed: () {},
     );
   }
 
-
   Future<void> _handleAdWatched() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (!mounted) return;
+    final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final userTier = _getUserTier(userDataProvider.userData);
+    final pointsToAward = _getPointsForTierFromAds(userTier);
+    final result = await userDataProvider.handleReward(pointsToAward);
 
-    final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    final userData = await userDocRef.get();
-    final data = userData.data() as Map<String, dynamic>;
-
-    final today = DateTime.now();
-    final lastAdDate = (data['lastAdWatchedDate'] as Timestamp).toDate();
-    final isNewDay = today.difference(lastAdDate).inDays > 0;
-
-    int adsWatchedToday = data['adsWatchedToday'];
-    int dailyStreak = data['dailyStreak'];
-
-    if (isNewDay) {
-      if (today.difference(lastAdDate).inDays > 1) {
-        dailyStreak = 0;
+    if (mounted && result['success']) {
+      if (result['dailyGoalCompleted']) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Daily goal complete! Your streak is now ${result['newStreak']} days.'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
-      adsWatchedToday = 0;
-    }
-
-    if (adsWatchedToday >= 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You have reached your daily ad limit.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
-    adsWatchedToday++;
-    final pointsToAward = _getPointsForTier(UserTier.values[data['tier']]);
-
-    if (adsWatchedToday == 5) {
-      dailyStreak++;
-      ScaffoldMessenger.of(context).showSnackBar(
+       if (result['tierPromoted']) {
+        _showTierPromotionDialog(result['newTierName']);
+      }
+    } else if (mounted) {
+       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Daily goal complete! Your streak is now $dailyStreak days.'),
+          content: Text(result['message'] ?? 'An error occurred.'),
           duration: const Duration(seconds: 2),
         ),
       );
     }
-
-    UserTier newTier = UserTier.values[data['tier']];
-    if (dailyStreak >= 7 && newTier == UserTier.bronze) {
-      newTier = UserTier.silver;
-      _showTierPromotionDialog('Silver');
-    } else if (dailyStreak >= 30 && newTier == UserTier.silver) {
-      newTier = UserTier.gold;
-      _showTierPromotionDialog('Gold');
-    }
-
-    await userDocRef.update({
-      'points': FieldValue.increment(pointsToAward),
-      'adsWatchedToday': adsWatchedToday,
-      'dailyStreak': dailyStreak,
-      'lastAdWatchedDate': Timestamp.now(),
-      'tier': newTier.index,
-    });
   }
 
   void _showRewardedAd(UserTier userTier) {
@@ -193,6 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _adService.showRewardedInterstitialAd(
       onUserEarnedReward: (reward) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Hint: Complete your profile to earn extra points!'),
@@ -224,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  int _getPointsForTier(UserTier tier) {
+  int _getPointsForTierFromAds(UserTier tier) {
     switch (tier) {
       case UserTier.gold:
         return 60;
@@ -234,6 +226,16 @@ class _HomeScreenState extends State<HomeScreen> {
         return 48;
     }
   }
+
+  // BUG 7 FIX: Safely get the user tier, defaulting to bronze.
+  UserTier _getUserTier(Map<String, dynamic>? userData) {
+    final tierIndex = userData?['tier'] ?? 0;
+    if (tierIndex >= 0 && tierIndex < UserTier.values.length) {
+      return UserTier.values[tierIndex];
+    }
+    return UserTier.bronze; // Default to bronze if the index is invalid
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -245,8 +247,12 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Consumer<UserDataProvider>(
           builder: (context, userDataProvider, child) {
+            if (userDataProvider.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            
             final userPoints = userDataProvider.points;
-            final userTier = UserTier.values[userDataProvider.userData?['tier'] ?? 0];
+            final userTier = _getUserTier(userDataProvider.userData);
             final dailyStreak = userDataProvider.userData?['dailyStreak'] ?? 0;
             final adsWatchedToday = userDataProvider.userData?['adsWatchedToday'] ?? 0;
 
@@ -395,6 +401,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _bannerAd?.dispose();
+    // BUG 8 FIX: Clear WebView resources to prevent memory leaks
+    _webViewController.clearCache();
+    _webViewController.clearLocalStorage();
     super.dispose();
   }
 }

@@ -3,66 +3,154 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rewardly/models/user_tier.dart';
 
 class UserDataProvider with ChangeNotifier {
   Map<String, dynamic>? _userData;
-  StreamSubscription<DocumentSnapshot>? _userSubscription;
   StreamSubscription<User?>? _authSubscription;
+  bool _isLoading = true;
+  bool _isHandlingReward = false;
 
   Map<String, dynamic>? get userData => _userData;
   int get points => _userData?['points'] ?? 0;
+  bool get isLoading => _isLoading;
 
   UserDataProvider() {
-    // Listen to authentication changes to start/stop listening to user data
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen(_onAuthStateChanged);
+    _authSubscription =
+        FirebaseAuth.instance.authStateChanges().listen(_onAuthStateChanged);
   }
 
   void _onAuthStateChanged(User? user) {
     if (user != null) {
-      // User is signed in, set up a real-time listener on their document
-      _listenToUserData(user.uid);
+      fetchUserData(user.uid);
     } else {
-      // User is signed out, clear the data and cancel the listener
       _userData = null;
-      _userSubscription?.cancel();
+      _isLoading = false;
       notifyListeners();
     }
   }
 
-  void _listenToUserData(String uid) {
-    // Cancel any existing listener
-    _userSubscription?.cancel();
+  Map<String, dynamic> _getDefaultUserData() {
+    return {
+      'points': 0,
+      'tier': UserTier.bronze.index,
+      'dailyStreak': 0,
+      'adsWatchedToday': 0,
+      'lastAdWatchedDate': Timestamp.now(),
+    };
+  }
 
-    // Listen to the user's document in the 'users' collection
-    _userSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .listen((snapshot) {
+  Future<void> fetchUserData(String uid) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (snapshot.exists) {
         _userData = snapshot.data();
       } else {
-        // Handle case where user document might not exist yet
-        _userData = null;
+        _userData = _getDefaultUserData();
       }
-      // Notify all listening widgets that the data has changed
+    } catch (error, stackTrace) {
+      developer.log('Error fetching user data', name: 'UserDataProvider', error: error, stackTrace: stackTrace);
+      _userData = _getDefaultUserData();
+    } finally {
+      _isLoading = false;
       notifyListeners();
-    }, onError: (error, stackTrace) {
-       developer.log(
-        'Error listening to user data',
-        name: 'UserDataProvider',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      _userData = null;
-      notifyListeners();
-    });
+    }
   }
 
-  // It's crucial to cancel subscriptions when the provider is no longer needed
+  Future<Map<String, dynamic>> handleReward(int pointsToAward) async {
+    if (_isHandlingReward) {
+      return {'success': false, 'message': 'Reward processing already in progress.'};
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return {'success': false, 'message': 'User not logged in'};
+    }
+
+    _isHandlingReward = true;
+
+    try {
+      final Map<String, dynamic> currentData = Map<String, dynamic>.from(_userData ?? _getDefaultUserData());
+
+      final today = DateTime.now();
+      final lastAdDate = (currentData['lastAdWatchedDate'] as Timestamp).toDate();
+      final isNewDay = today.difference(lastAdDate).inDays > 0;
+
+      int adsWatchedToday = currentData['adsWatchedToday'];
+      int dailyStreak = currentData['dailyStreak'];
+
+      if (isNewDay) {
+        if (today.difference(lastAdDate).inDays > 1) {
+          dailyStreak = 0;
+        }
+        adsWatchedToday = 0;
+      }
+
+      if (adsWatchedToday >= 10) {
+        return {'success': false, 'message': 'Daily reward limit reached.'};
+      }
+
+      adsWatchedToday++;
+      // BUG 5 FIX: Use null-aware operator to prevent crash if 'points' is missing.
+      int newPoints = (currentData['points'] ?? 0) + pointsToAward;
+
+      bool dailyGoalCompleted = false;
+      if (adsWatchedToday == 5) {
+        dailyStreak++;
+        dailyGoalCompleted = true;
+      }
+
+      UserTier currentTier = UserTier.values[currentData['tier']];
+      UserTier newTier = currentTier;
+      bool tierPromoted = false;
+      String newTierName = '';
+
+      if (dailyStreak >= 30 && newTier == UserTier.silver) {
+        newTier = UserTier.gold;
+        tierPromoted = true;
+        newTierName = 'Gold';
+      } else if (dailyStreak >= 7 && newTier == UserTier.bronze) {
+        newTier = UserTier.silver;
+        tierPromoted = true;
+        newTierName = 'Silver';
+      }
+
+      final Map<String, dynamic> updatedData = {
+        'points': newPoints,
+        'adsWatchedToday': adsWatchedToday,
+        'dailyStreak': dailyStreak,
+        'lastAdWatchedDate': Timestamp.now(),
+        'tier': newTier.index,
+      };
+
+      final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      await userDocRef.set(updatedData, SetOptions(merge: true));
+
+      _userData = updatedData;
+      notifyListeners();
+
+      return {
+        'success': true,
+        'dailyGoalCompleted': dailyGoalCompleted,
+        // BUG 6 FIX: Corrected typo from 'daily Streak' to 'dailyStreak'
+        'newStreak': dailyStreak,
+        'tierPromoted': tierPromoted,
+        'newTierName': newTierName,
+      };
+
+    } catch (error, stackTrace) {
+      developer.log('Error updating user data', name: 'UserDataProvider', error: error, stackTrace: stackTrace);
+      return {'success': false, 'message': 'Error saving data.'};
+    } finally {
+      _isHandlingReward = false;
+    }
+  }
+
   @override
   void dispose() {
-    _userSubscription?.cancel();
     _authSubscription?.cancel();
     super.dispose();
   }
