@@ -333,6 +333,13 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildNavButton(
           context,
+          icon: Icons.games_outlined,
+          label: 'Play Game',
+          onPressed: () => context.go('/game'),
+        ),
+        const SizedBox(height: 15),
+        _buildNavButton(
+          context,
           icon: Icons.history_outlined,
           label: 'Withdrawal History',
           onPressed: () => context.go('/withdrawal_history'),

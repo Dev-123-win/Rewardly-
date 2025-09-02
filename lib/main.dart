@@ -18,6 +18,7 @@ import 'package:rewardly/screens/privacy_policy_screen.dart';
 import 'package:rewardly/screens/withdrawal_screen.dart';
 import 'package:rewardly/screens/withdrawal_history_screen.dart';
 import 'package:rewardly/screens/referral_screen.dart';
+import 'package:rewardly/screens/game_screen.dart'; // Import the game screen
 import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/services/notification_service.dart';
 import 'package:rewardly/services/remote_config_service.dart';
@@ -95,6 +96,10 @@ final _router = GoRouter(
         GoRoute(
           path: 'admin',
           builder: (context, state) => const AdminScreen(),
+        ),
+        GoRoute(
+          path: 'game',
+          builder: (context, state) => const GameScreen(),
         ),
       ],
     ),
@@ -231,9 +236,13 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (index == 1) {
+      context.go('/profile');
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override
