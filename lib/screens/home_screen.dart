@@ -8,7 +8,6 @@ import 'package:rewardly/models/user_tier.dart';
 import 'package:rewardly/providers/user_data_provider.dart';
 import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/widgets/points_card.dart';
-import 'package:rewardly/widgets/rewardly_app_bar.dart';
 import 'package:rewardly/widgets/streak_indicator.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 

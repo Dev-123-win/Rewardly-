@@ -150,7 +150,7 @@ class UserDataProvider with ChangeNotifier {
 
 
       final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      await userDocRef..set(updatedData, SetOptions(merge: true));
+      await userDocRef.set(updatedData, SetOptions(merge: true));
 
       _userData = updatedData;
       notifyListeners();

@@ -25,6 +25,7 @@ import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/services/notification_service.dart';
 import 'package:rewardly/services/remote_config_service.dart';
 import 'package:rewardly/widgets/noise_background.dart';
+import 'package:rewardly/splash_screen.dart';
 import 'firebase_options.dart';
 import 'package:go_router/go_router.dart';
 
@@ -76,8 +77,12 @@ class ThemeProvider with ChangeNotifier {
 }
 
 final _router = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/splash',
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
     GoRoute(
       path: '/',
       builder: (context, state) => const MainScreen(),

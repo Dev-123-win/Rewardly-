@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rewardly/data/achievements.dart';
-import 'package:rewardly/models/achievement.dart';
 import 'package:rewardly/providers/user_data_provider.dart';
 
 class AchievementsScreen extends StatelessWidget {

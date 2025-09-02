@@ -10,108 +10,87 @@ class HowItWorksScreen extends StatelessWidget {
         title: const Text('How It Works'),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader(context, 'Welcome to Rewardly!'),
-            _buildSectionContent(
-              context,
-              'Rewardly is a fun and easy way to earn rewards by watching ads and playing games. Here\'s how you can get started:',
+            _buildStep(context, '1', 'Watch Ads, Earn Points', 'Watch short ads to earn points. You can watch up to 10 ads daily.'),
+            _buildStep(
+              context, 
+              '2', 
+              'Play the Game', 
+              'Collect coins in our endless runner game. The more coins you collect, the more points you can convert.',
+              isGame: true
             ),
-            const SizedBox(height: 24),
-            _buildSectionHeader(context, 'Earning Points'),
-            _buildPointItem(
-              context,
-              icon: Icons.movie_creation_outlined,
-              title: 'Watch Ads',
-              description: 'Earn points by watching short video ads. You can watch up to 10 ads per day.',
-            ),
-            _buildPointItem(
-              context,
-              icon: Icons.games_outlined,
-              title: 'Play Our Game',
-              description: 'Play our endless runner game and collect coins. These coins can be converted into points.',
-            ),
-            _buildPointItem(
-              context,
-              icon: Icons.group_add_outlined,
-              title: 'Refer Friends',
-              description: 'Invite your friends to join Rewardly and earn bonus points when they sign up.',
-            ),
-            const SizedBox(height: 24),
-            _buildSectionHeader(context, 'Daily Streaks & Goals'),
-            _buildPointItem(
-              context,
-              icon: Icons.local_fire_department,
-              title: 'Complete Daily Goals',
-              description: 'Watch 5 ads in a single day to complete your daily goal and increase your streak.',
-            ),
-            _buildPointItem(
-              context,
-              icon: Icons.shield_outlined,
-              title: 'Climb the Tiers',
-              description: 'Maintain your daily streak to get promoted to higher tiers (Bronze, Silver, Gold) and earn more points per ad.',
-            ),
-            const SizedBox(height: 24),
-            _buildSectionHeader(context, 'Redeeming Rewards'),
-            _buildSectionContent(
-              context,
-              'Once you have collected enough points, you can redeem them for real rewards! Visit the \'Withdrawal\' section to see the available options.',
-            ),
+            _buildStep(context, '3', 'Maintain Your Streak', 'Watch at least 5 ads every day to keep your daily streak alive and earn tier promotions.'),
+            _buildStep(context, '4', 'Redeem Your Points', 'Cash out your points for real rewards from the withdrawal section.'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-      ),
-    );
-  }
-
-  Widget _buildSectionContent(BuildContext context, String content) {
-    return Text(
-      content,
-      style: Theme.of(context).textTheme.bodyLarge,
-    );
-  }
-
-  Widget _buildPointItem(BuildContext context, {required IconData icon, required String title, required String description}) {
+  Widget _buildStep(BuildContext context, String step, String title, String description, {bool isGame = false}) {
+    final theme = Theme.of(context);
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: const EdgeInsets.only(bottom: 20),
+      elevation: 4,
+      shadowColor: theme.primaryColor.withAlpha(50),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 40, color: Theme.of(context).colorScheme.secondary),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+            CircleAvatar(
+              backgroundColor: theme.primaryColor,
+              child: Text(step, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
+            const SizedBox(height: 15),
+            Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(description, style: theme.textTheme.bodyMedium),
+            if (isGame) _buildGameExplanation(context),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildGameExplanation(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 15.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Coin to Point Conversion:', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          _buildTierConversion(context, 'Bronze Tier', '1,000 coins = 500 points'),
+          _buildTierConversion(context, 'Silver Tier', '1,000 coins = 750 points'),
+          _buildTierConversion(context, 'Gold Tier', '1,000 coins = 1,000 points'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTierConversion(BuildContext context, String tier, String conversion) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(Icons.star, color: theme.colorScheme.secondary, size: 16),
+          const SizedBox(width: 8),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: '$tier: ', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                TextSpan(text: conversion, style: theme.textTheme.bodyMedium),
+              ]
+            )
+          )
+        ],
       ),
     );
   }
