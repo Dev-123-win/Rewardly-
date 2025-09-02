@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
+import 'package:rewardly/main.dart';
 import 'package:rewardly/models/user_tier.dart';
 import 'package:rewardly/providers/user_data_provider.dart';
 import 'package:rewardly/services/ad_service.dart';
@@ -120,6 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: Theme.of(context).primaryColor,
             ),
           );
+           _checkAchievements(result);
        }
     }
   }
@@ -152,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
        if (result['tierPromoted']) {
         _showTierPromotionDialog(result['newTierName']);
       }
+        _checkAchievements(result);
     } else if (mounted) {
        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -159,6 +162,20 @@ class _HomeScreenState extends State<HomeScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  void _checkAchievements(Map<String, dynamic> result) {
+    if (result['unlockedAchievements'] != null && result['unlockedAchievements'].isNotEmpty) {
+      for (var achievement in result['unlockedAchievements']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Achievement Unlocked: ${achievement.title}'),
+            backgroundColor: Colors.amber,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -227,22 +244,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // BUG 7 FIX: Safely get the user tier, defaulting to bronze.
   UserTier _getUserTier(Map<String, dynamic>? userData) {
     final tierIndex = userData?['tier'] ?? 0;
     if (tierIndex >= 0 && tierIndex < UserTier.values.length) {
       return UserTier.values[tierIndex];
     }
-    return UserTier.bronze; // Default to bronze if the index is invalid
+    return UserTier.bronze;
   }
 
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
-      appBar: const RewardlyAppBar(),
+      appBar: AppBar(
+        title: const Text('Rewardly'),
+        actions: [
+          IconButton(
+            icon: Icon(themeProvider.themeMode == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode),
+            onPressed: () => themeProvider.toggleTheme(),
+            tooltip: 'Toggle Theme',
+          ),
+          IconButton(
+            icon: const Icon(Icons.auto_mode),
+            onPressed: () => themeProvider.setSystemTheme(),
+            tooltip: 'Set System Theme',
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Consumer<UserDataProvider>(
@@ -339,6 +370,20 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildNavButton(
           context,
+          icon: Icons.emoji_events_outlined,
+          label: 'Achievements',
+          onPressed: () => context.go('/achievements'),
+        ),
+        const SizedBox(height: 15),
+        _buildNavButton(
+          context,
+          icon: Icons.help_outline,
+          label: 'How It Works',
+          onPressed: () => context.go('/how-it-works'),
+        ),
+        const SizedBox(height: 15),
+        _buildNavButton(
+          context,
           icon: Icons.games_outlined,
           label: 'Play Game',
           onPressed: () => context.go('/game'),
@@ -401,7 +446,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _bannerAd?.dispose();
-    // BUG 8 FIX: Clear WebView resources to prevent memory leaks
     _webViewController.clearCache();
     _webViewController.clearLocalStorage();
     super.dispose();

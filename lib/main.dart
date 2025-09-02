@@ -8,8 +8,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:rewardly/providers/user_data_provider.dart';
+import 'package:rewardly/screens/achievements_screen.dart';
 import 'package:rewardly/screens/admin_screen.dart';
 import 'package:rewardly/screens/home_screen.dart';
+import 'package:rewardly/screens/how_it_works_screen.dart';
 import 'package:rewardly/screens/profile_screen.dart';
 import 'package:rewardly/screens/login_screen.dart';
 import 'package:rewardly/screens/register_screen.dart';
@@ -47,11 +49,30 @@ void main() async {
   adService.loadAppOpenAd();
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => UserDataProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => UserDataProvider()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+      ],
       child: const MyApp(),
     ),
   );
+}
+
+class ThemeProvider with ChangeNotifier {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  ThemeMode get themeMode => _themeMode;
+
+  void toggleTheme() {
+    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    notifyListeners();
+  }
+
+  void setSystemTheme() {
+    _themeMode = ThemeMode.system;
+    notifyListeners();
+  }
 }
 
 final _router = GoRouter(
@@ -101,6 +122,14 @@ final _router = GoRouter(
           path: 'game',
           builder: (context, state) => const GameScreen(),
         ),
+        GoRoute(
+          path: 'achievements',
+          builder: (context, state) => const AchievementsScreen(),
+        ),
+        GoRoute(
+          path: 'how-it-works',
+          builder: (context, state) => const HowItWorksScreen(),
+        ),
       ],
     ),
   ],
@@ -139,81 +168,88 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Colors.blue;
+    const primarySeedColor = Colors.deepPurple;
 
-    return MaterialApp.router(
-      routerConfig: _router,
-      title: remoteConfigService.getString('app_bar_title'),
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primaryColor,
-          brightness: Brightness.light,
-        ),
-        textTheme: TextTheme(
-          displayLarge: GoogleFonts.robotoSlab(fontWeight: FontWeight.bold),
-          headlineLarge: GoogleFonts.robotoSlab(fontWeight: FontWeight.bold),
-          bodyLarge: GoogleFonts.inter(),
-          bodyMedium: GoogleFonts.inter(),
-        ),
-        appBarTheme: AppBarTheme(
-          backgroundColor: primaryColor,
+    final TextTheme appTextTheme = TextTheme(
+      displayLarge: GoogleFonts.oswald(fontSize: 57, fontWeight: FontWeight.bold),
+      titleLarge: GoogleFonts.roboto(fontSize: 22, fontWeight: FontWeight.w500),
+      bodyMedium: GoogleFonts.openSans(fontSize: 14),
+    );
+
+    final ThemeData lightTheme = ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primarySeedColor,
+        brightness: Brightness.light,
+      ),
+      textTheme: appTextTheme,
+      appBarTheme: AppBarTheme(
+        backgroundColor: primarySeedColor,
+        foregroundColor: Colors.white,
+        titleTextStyle: GoogleFonts.oswald(fontSize: 24, fontWeight: FontWeight.bold),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
           foregroundColor: Colors.white,
-          elevation: 2,
-          titleTextStyle: GoogleFonts.robotoSlab(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white,
-            backgroundColor: primaryColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            textStyle: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: primaryColor, width: 2),
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 8,
-          shadowColor: Colors.black.withAlpha(50),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          backgroundColor: primarySeedColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          textStyle: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w500),
         ),
       ),
-      builder: (context, child) {
-        return NoiseBackground(
-          child: Column(
-            children: [
-              if (_isOffline)
-                Container(
-                  width: double.infinity,
-                  color: Colors.red,
-                  padding: const EdgeInsets.all(8.0),
-                  child: const Text(
-                    'No Internet Connection',
-                    style: TextStyle(color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              Expanded(child: child!),
-            ],
-          ),
+    );
+
+    final ThemeData darkTheme = ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primarySeedColor,
+        brightness: Brightness.dark,
+      ),
+      textTheme: appTextTheme,
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.grey[900],
+        foregroundColor: Colors.white,
+        titleTextStyle: GoogleFonts.oswald(fontSize: 24, fontWeight: FontWeight.bold),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.black,
+          backgroundColor: primarySeedColor.shade200,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          textStyle: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp.router(
+          routerConfig: _router,
+          title: remoteConfigService.getString('app_bar_title'),
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          themeMode: themeProvider.themeMode,
+          builder: (context, child) {
+            return NoiseBackground(
+              child: Column(
+                children: [
+                  if (_isOffline)
+                    Container(
+                      width: double.infinity,
+                      color: Colors.red,
+                      padding: const EdgeInsets.all(8.0),
+                      child: const Text(
+                        'No Internet Connection',
+                        style: TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  Expanded(child: child!),
+                ],
+              ),
+            );
+          },
         );
       },
     );

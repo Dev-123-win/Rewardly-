@@ -3,6 +3,8 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rewardly/data/achievements.dart';
+import 'package:rewardly/models/achievement.dart';
 import 'package:rewardly/models/user_tier.dart';
 
 class UserDataProvider with ChangeNotifier {
@@ -37,6 +39,7 @@ class UserDataProvider with ChangeNotifier {
       'dailyStreak': 0,
       'adsWatchedToday': 0,
       'lastAdWatchedDate': Timestamp.now(),
+      'unlocked_achievements': [],
     };
   }
 
@@ -48,6 +51,9 @@ class UserDataProvider with ChangeNotifier {
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (snapshot.exists) {
         _userData = snapshot.data();
+        if (_userData!['unlocked_achievements'] == null) {
+          _userData!['unlocked_achievements'] = [];
+        }
       } else {
         _userData = _getDefaultUserData();
       }
@@ -94,7 +100,6 @@ class UserDataProvider with ChangeNotifier {
       }
 
       adsWatchedToday++;
-      // BUG 5 FIX: Use null-aware operator to prevent crash if 'points' is missing.
       int newPoints = (currentData['points'] ?? 0) + pointsToAward;
 
       bool dailyGoalCompleted = false;
@@ -124,10 +129,28 @@ class UserDataProvider with ChangeNotifier {
         'dailyStreak': dailyStreak,
         'lastAdWatchedDate': Timestamp.now(),
         'tier': newTier.index,
+        'unlocked_achievements': currentData['unlocked_achievements'] ?? [],
       };
+      
+      List<Achievement> newlyUnlockedAchievements = [];
+      List<dynamic> unlockedAchievementIds = List<dynamic>.from(updatedData['unlocked_achievements']);
+
+      for (var achievement in achievements) {
+        if (!unlockedAchievementIds.contains(achievement.id)) {
+          if (achievement.condition(updatedData)) {
+            newlyUnlockedAchievements.add(achievement);
+            unlockedAchievementIds.add(achievement.id);
+          }
+        }
+      }
+
+      if (newlyUnlockedAchievements.isNotEmpty) {
+        updatedData['unlocked_achievements'] = unlockedAchievementIds;
+      }
+
 
       final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      await userDocRef.set(updatedData, SetOptions(merge: true));
+      await userDocRef..set(updatedData, SetOptions(merge: true));
 
       _userData = updatedData;
       notifyListeners();
@@ -135,10 +158,10 @@ class UserDataProvider with ChangeNotifier {
       return {
         'success': true,
         'dailyGoalCompleted': dailyGoalCompleted,
-        // BUG 6 FIX: Corrected typo from 'daily Streak' to 'dailyStreak'
         'newStreak': dailyStreak,
         'tierPromoted': tierPromoted,
         'newTierName': newTierName,
+        'unlockedAchievements': newlyUnlockedAchievements,
       };
 
     } catch (error, stackTrace) {
