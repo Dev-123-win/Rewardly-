@@ -1,3 +1,5 @@
 {
-  "IDX.agenticWorkspace": true
+  "IDX.agenticWorkspace": true,
+  "workbench.editor.enablePreview": false,
+  "debug.openDebug": "openOnFirstSessionStart"
 }
