@@ -7,9 +7,12 @@ import 'package:rewardly/admin_screen.dart';
 import 'package:rewardly/screens/auth_screen.dart';
 import 'package:rewardly/screens/home_screen.dart';
 import 'package:rewardly/screens/profile_screen.dart';
+import 'package:rewardly/screens/register_screen.dart';
 import 'package:rewardly/screens/withdrawal_screen.dart';
 import 'package:rewardly/screens/withdrawal_history_screen.dart';
 import 'package:rewardly/screens/admin_history_screen.dart';
+import 'package:rewardly/screens/about_screen.dart';
+import 'package:rewardly/screens/document_screen.dart';
 
 // Helper class to notify the router of auth state changes
 class GoRouterRefreshStream extends ChangeNotifier {
@@ -66,6 +69,12 @@ final GoRouter router = GoRouter(
             return const AdminHistoryScreen();
           },
         ),
+        GoRoute(
+          path: 'about',
+          builder: (BuildContext context, GoRouterState state) {
+            return const AboutScreen();
+          },
+        ),
       ],
     ),
     GoRoute(
@@ -74,18 +83,45 @@ final GoRouter router = GoRouter(
         return const AuthScreen();
       },
     ),
+    GoRoute(
+      path: '/register',
+      builder: (BuildContext context, GoRouterState state) {
+        return const RegisterScreen();
+      },
+    ),
+    GoRoute(
+      path: '/privacy',
+      builder: (BuildContext context, GoRouterState state) {
+        return const DocumentScreen(
+          title: 'Privacy Policy',
+          assetPath: 'PRIVACY_POLICY.md',
+        );
+      },
+    ),
+    GoRoute(
+      path: '/terms',
+      builder: (BuildContext context, GoRouterState state) {
+        return const DocumentScreen(
+          title: 'Terms & Conditions',
+          assetPath: 'TERMS_AND_CONDITIONS.md',
+        );
+      },
+    ),
   ],
   redirect: (BuildContext context, GoRouterState state) {
     final bool loggedIn = FirebaseAuth.instance.currentUser != null;
-    final bool loggingIn = state.matchedLocation == '/login';
+    final List<String> nonAuthRoutes = ['/login', '/register', '/privacy', '/terms'];
 
-    // If the user is not logged in and not on the login page, redirect to login
-    if (!loggedIn && !loggingIn) {
+    final bool isOnNonAuthRoute = nonAuthRoutes.contains(state.matchedLocation);
+
+    // If the user is not logged in and not on a page that can be viewed
+    // without authentication, redirect to login.
+    if (!loggedIn && !isOnNonAuthRoute) {
       return '/login';
     }
 
-    // If the user is logged in and on the login page, redirect to home
-    if (loggedIn && loggingIn) {
+    // If the user is logged in and on the login or register page, redirect to home
+    if (loggedIn && (state.matchedLocation == '/login' || state.matchedLocation == '/register')) {
       return '/';
     }
 

@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final pointsToAward = _getPointsForCoins(userTier, coins);
 
     if (pointsToAward > 0) {
-       final result = await userDataProvider.handleReward(pointsToAward);
+       final result = await userDataProvider.handleReward(pointsToAward, isGameReward: true);
        if (mounted && result['success']) {
          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -139,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
     final userTier = _getUserTier(userDataProvider.userData);
     final pointsToAward = _getPointsForTierFromAds(userTier);
-    final result = await userDataProvider.handleReward(pointsToAward);
+    final result = await userDataProvider.handleReward(pointsToAward, isGameReward: false);
 
     if (mounted && result['success']) {
       if (result['dailyGoalCompleted']) {
@@ -271,6 +271,11 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => themeProvider.setSystemTheme(),
             tooltip: 'Set System Theme',
           ),
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => context.go('/about'),
+            tooltip: 'About',
+          ),
         ],
       ),
       body: Padding(
@@ -359,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : const Icon(Icons.lightbulb_outline),
       label: Text(
-        _isHintAdShowing ? 'Loading Hint...' : 'Watch Ad for a Hint',
+        _isHintAdShowing ? 'Loading Hint...' : 'Get a Hint',
       ),
     );
   }
@@ -369,37 +374,23 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildNavButton(
           context,
-          icon: Icons.emoji_events_outlined,
-          label: 'Achievements',
-          onPressed: () => context.go('/achievements'),
+          icon: Icons.person_outline,
+          label: 'My Profile',
+          onPressed: () => context.go('/profile'),
         ),
         const SizedBox(height: 15),
         _buildNavButton(
           context,
-          icon: Icons.help_outline,
-          label: 'How It Works',
-          onPressed: () => context.go('/how-it-works'),
+          icon: Icons.account_balance_wallet_outlined,
+          label: 'Withdraw Points',
+          onPressed: () => context.go('/withdrawal'),
         ),
         const SizedBox(height: 15),
         _buildNavButton(
           context,
-          icon: Icons.games_outlined,
-          label: 'Play Game',
-          onPressed: () => context.go('/game'),
-        ),
-        const SizedBox(height: 15),
-        _buildNavButton(
-          context,
-          icon: Icons.history_outlined,
+          icon: Icons.history,
           label: 'Withdrawal History',
-          onPressed: () => context.go('/withdrawal_history'),
-        ),
-        const SizedBox(height: 15),
-        _buildNavButton(
-          context,
-          icon: Icons.group_add_outlined,
-          label: 'Refer a Friend',
-          onPressed: () => context.go('/referral'),
+          onPressed: () => context.go('/withdrawal-history'),
         ),
         if (_isAdmin)
           Padding(
@@ -418,6 +409,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildNavButton(BuildContext context, {required IconData icon, required String label, required VoidCallback onPressed}) {
     final theme = Theme.of(context);
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(12),
@@ -425,16 +418,16 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(icon, size: 28, color: theme.primaryColor),
+              Icon(icon, size: 28, color: theme.colorScheme.primary),
               const SizedBox(width: 16),
               Text(
                 label,
-                style: theme.textTheme.bodyLarge?.copyWith(
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+              Icon(Icons.arrow_forward_ios_rounded, size: 18, color: theme.colorScheme.onSurface.withAlpha(153)),
             ],
           ),
         ),

@@ -86,6 +86,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 _buildLoginButton(),
                 const SizedBox(height: 24),
                 _buildRegisterButton(context),
+                const SizedBox(height: 24),
+                _buildPolicyLinks(context),
               ],
             ),
           ),
@@ -132,6 +134,23 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextButton(
       onPressed: () => context.go('/register'),
       child: const Text("Don't have an account? Register"),
+    );
+  }
+
+  Widget _buildPolicyLinks(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        TextButton(
+          onPressed: () => context.go('/terms'),
+          child: const Text('Terms of Service'),
+        ),
+        const Text('|'),
+        TextButton(
+          onPressed: () => context.go('/privacy'),
+          child: const Text('Privacy Policy'),
+        ),
+      ],
     );
   }
 }

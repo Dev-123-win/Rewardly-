@@ -48,6 +48,8 @@ dependencies:
   firebase_remote_config: ^6.0.0
   firebase_app_check: ^0.4.0
   webview_flutter: ^4.8.0 # Added for the game
+  device_info_plus: ^11.5.0
+  flutter_markdown: ^0.7.7+1
 
 dev_dependencies:
   flutter_test:
@@ -79,6 +81,8 @@ flutter:
     - endless_runner_game/assets/models/
     - endless_runner_game/assets/textures/
     - endless_runner_game/assets/sounds/
+    - PRIVACY_POLICY.md
+    - TERMS_AND_CONDITIONS.md
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

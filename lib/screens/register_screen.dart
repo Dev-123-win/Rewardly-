@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rewardly/models/user_tier.dart';
+import 'package:rewardly/services/device_info_service.dart';
 import 'dart:math';
 
 class RegisterScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _referralCodeController = TextEditingController();
+  final DeviceInfoService _deviceInfoService = DeviceInfoService();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -26,6 +28,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final random = Random();
     return String.fromCharCodes(Iterable.generate(
         8, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
+  }
+
+  int _getReferrerBonus(UserTier tier) {
+    switch (tier) {
+      case UserTier.gold:
+        return 1000;
+      case UserTier.silver:
+        return 750;
+      case UserTier.bronze:
+        return 500;
+    }
   }
 
   Future<void> _register() async {
@@ -37,7 +50,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // Create the new user
+      final deviceId = await _deviceInfoService.getDeviceId();
+      if (deviceId == null) {
+        setState(() {
+          _errorMessage = "Could not retrieve device ID. Please try again.";
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final firestore = FirebaseFirestore.instance;
+
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
@@ -45,57 +68,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final newUser = credential.user;
       if (newUser == null) return;
 
-      int initialPoints = 100; // Default starting points
-      String? referredBy = _referralCodeController.text.trim();
-      DocumentReference? referrerDocRef;
+      await firestore.runTransaction((transaction) async {
+        final deviceDocRef = firestore.collection('deviceIds').doc(deviceId);
+        final deviceDoc = await transaction.get(deviceDocRef);
 
-      // Check if a referral code was entered and is valid
-      if (referredBy.isNotEmpty) {
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .where('referralCode', isEqualTo: referredBy)
-            .limit(1)
-            .get();
-
-        if (querySnapshot.docs.isNotEmpty) {
-          referrerDocRef = querySnapshot.docs.first.reference;
-          initialPoints += 50; // Bonus points for the new user
-        } else {
-          // Handle invalid referral code
-          setState(() {
-            _errorMessage = 'Invalid referral code. Please check and try again.';
-            _isLoading = false;
-          });
-          return;
+        if (deviceDoc.exists) {
+          throw FirebaseException(
+              plugin: 'firestore',
+              code: 'aborted',
+              message: 'This device is already associated with an account.');
         }
-      }
 
-      // Use a batch write for atomic operations
-      final batch = FirebaseFirestore.instance.batch();
+        int initialPoints = 100; // Base points
+        String? referredBy = _referralCodeController.text.trim();
+        DocumentReference? referrerDocRef;
+        int referrerBonus = 0;
 
-      // 1. Create the new user's document
-      final newUserDocRef = FirebaseFirestore.instance.collection('users').doc(newUser.uid);
-      batch.set(newUserDocRef, {
-        'email': _emailController.text,
-        'points': initialPoints,
-        'tier': UserTier.bronze.index,
-        'referralCode': _generateReferralCode(),
-        'referredBy': referredBy.isNotEmpty ? referrerDocRef!.id : null,
-        'createdAt': FieldValue.serverTimestamp(),
-        'adsWatchedToday': 0,
-        'dailyStreak': 0,
-        'lastAdWatchedDate': Timestamp.fromDate(DateTime(2000)), // A date in the past
-      });
+        if (referredBy.isNotEmpty) {
+          final querySnapshot = await firestore
+              .collection('users')
+              .where('referralCode', isEqualTo: referredBy)
+              .limit(1)
+              .get();
 
-      // 2. Reward the referrer if one exists
-      if (referrerDocRef != null) {
-        batch.update(referrerDocRef, {
-          'points': FieldValue.increment(100), // Bonus points for the referrer
+          if (querySnapshot.docs.isNotEmpty) {
+            final referrerDoc = querySnapshot.docs.first;
+            referrerDocRef = referrerDoc.reference;
+            final referrerData = referrerDoc.data();
+
+            initialPoints += 250; // New user gets 250 points
+
+            final referrerTierIndex =
+                referrerData['tier'] as int? ?? UserTier.bronze.index;
+            final referrerTier = UserTier.values[referrerTierIndex];
+            referrerBonus = _getReferrerBonus(referrerTier);
+          } else {
+            throw FirebaseException(
+                plugin: 'firestore',
+                code: 'aborted',
+                message: 'Invalid referral code. Please check and try again.');
+          }
+        }
+
+        final newUserDocRef = firestore.collection('users').doc(newUser.uid);
+        transaction.set(newUserDocRef, {
+          'email': _emailController.text,
+          'points': initialPoints,
+          'tier': UserTier.bronze.index,
+          'referralCode': _generateReferralCode(),
+          'referredBy': referredBy.isNotEmpty ? referrerDocRef!.id : null,
+          'createdAt': FieldValue.serverTimestamp(),
+          'adsWatchedToday': 0,
+          'dailyStreak': 0,
+          'lastAdWatchedDate': Timestamp.fromDate(DateTime(2000)),
+          'deviceId': deviceId,
         });
-      }
 
-      // Commit the batch
-      await batch.commit();
+        transaction.set(deviceDocRef, {'userId': newUser.uid});
+
+        if (referrerDocRef != null) {
+          transaction
+              .update(referrerDocRef, {'points': FieldValue.increment(referrerBonus)});
+        }
+      });
 
       if (mounted) {
         context.go('/');
@@ -104,6 +139,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _errorMessage = e.message;
       });
+    } on FirebaseException catch (e) {
+      if (e.message != null) {
+        _errorMessage = e.message;
+      } else {
+        _errorMessage = "An unexpected error occurred. Please try again.";
+      }
+      setState(() {});
     } catch (e) {
       setState(() {
         _errorMessage = "An unexpected error occurred. Please try again.";
@@ -116,7 +158,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +207,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _buildRegisterButton(),
                 const SizedBox(height: 24),
                 _buildLoginButton(context),
+                const SizedBox(height: 24),
+                _buildPolicyLinks(context),
               ],
             ),
           ),
@@ -205,7 +248,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       obscureText: true,
       decoration: const InputDecoration(
         labelText: 'Confirm Password',
-        prefixIcon: Icon(Icons.lock_outline),
+        prefixIcon: Icon(Icons.lock_outlined),
       ),
       validator: (value) => value != _passwordController.text
           ? 'Passwords do not match'
@@ -237,6 +280,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextButton(
       onPressed: () => context.go('/login'),
       child: const Text('Already have an account? Login'),
+    );
+  }
+
+  Widget _buildPolicyLinks(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        TextButton(
+          onPressed: () => context.go('/terms'),
+          child: const Text('Terms of Service'),
+        ),
+        const Text('|'),
+        TextButton(
+          onPressed: () => context.go('/privacy'),
+          child: const Text('Privacy Policy'),
+        ),
+      ],
     );
   }
 }

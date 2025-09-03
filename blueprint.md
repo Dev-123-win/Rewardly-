@@ -26,6 +26,10 @@ Rewardly is a mobile application that allows users to earn points by watching ad
 - **Noise Background:** A subtle noise texture is applied to the main background for a premium feel.
 - **Custom Fonts:** The app uses Google Fonts for a unique and visually appealing typography.
 - **Responsive Design:** The app is designed to be responsive and adapt to different screen sizes.
+- **About and Legal:**
+    - An "About" screen provides links to the app's legal documents.
+    - Includes a "Privacy Policy" and "Terms & Conditions" that are displayed from markdown files.
+    - Links to these documents are available on the Home, Login, and Register screens.
 
 ### Admin
 
@@ -33,4 +37,13 @@ Rewardly is a mobile application that allows users to earn points by watching ad
 
 ## Current Plan
 
-This marks the completion of the initial development phase. The next steps will involve further refinement, bug fixing, and the potential addition of new features based on user feedback.
+### Added About and Legal Screens
+- **Created Markdown Files:** Added `PRIVACY_POLICY.md` and `TERMS_AND_CONDITIONS.md` to the project root.
+- **Updated Assets:** Included the new markdown files in the `pubspec.yaml` to be bundled with the app.
+- **Document Viewer:** Created a reusable `DocumentScreen` to render and display the content of the markdown files.
+- **About Screen:** Implemented an `AboutScreen` that serves as a hub, providing navigation to the legal documents.
+- **Routing:** Updated the application's router (`GoRouter`) to include new routes for the `/about`, `/privacy`, and `/terms` pages.
+- **UI Integration:**
+    - Added an "About" icon to the app bar on the `HomeScreen` for easy access.
+    - Included links to the "Privacy Policy" and "Terms of Service" on both the `LoginScreen` and `RegisterScreen` to ensure users can review them before creating an account or logging in.
+- **Redirect Logic:** Updated the router's redirect logic to ensure that the new legal pages are accessible to unauthenticated users.

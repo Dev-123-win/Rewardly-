@@ -32,8 +32,9 @@ class UserDataProvider with ChangeNotifier {
     }
   }
 
-  Map<String, dynamic> _getDefaultUserData() {
+  Map<String, dynamic> _getDefaultUserData(String uid) {
     return {
+      'uid': uid,
       'points': 0,
       'tier': UserTier.bronze.index,
       'dailyStreak': 0,
@@ -55,18 +56,18 @@ class UserDataProvider with ChangeNotifier {
           _userData!['unlocked_achievements'] = [];
         }
       } else {
-        _userData = _getDefaultUserData();
+        _userData = _getDefaultUserData(uid);
       }
     } catch (error, stackTrace) {
       developer.log('Error fetching user data', name: 'UserDataProvider', error: error, stackTrace: stackTrace);
-      _userData = _getDefaultUserData();
+      _userData = _getDefaultUserData(uid);
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<Map<String, dynamic>> handleReward(int pointsToAward) async {
+  Future<Map<String, dynamic>> handleReward(int pointsToAward, {bool isGameReward = false}) async {
     if (_isHandlingReward) {
       return {'success': false, 'message': 'Reward processing already in progress.'};
     }
@@ -79,90 +80,95 @@ class UserDataProvider with ChangeNotifier {
     _isHandlingReward = true;
 
     try {
-      final Map<String, dynamic> currentData = Map<String, dynamic>.from(_userData ?? _getDefaultUserData());
+      final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
 
-      final today = DateTime.now();
-      final lastAdDate = (currentData['lastAdWatchedDate'] as Timestamp).toDate();
-      final isNewDay = today.difference(lastAdDate).inDays > 0;
+      return await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(userDocRef);
+        final Map<String, dynamic> currentData = snapshot.exists
+            ? snapshot.data() as Map<String, dynamic>
+            : _getDefaultUserData(user.uid);
 
-      int adsWatchedToday = currentData['adsWatchedToday'];
-      int dailyStreak = currentData['dailyStreak'];
+        final today = DateTime.now();
+        final lastAdDate = (currentData['lastAdWatchedDate'] as Timestamp).toDate();
+        final isNewDay = today.difference(lastAdDate).inDays > 0;
 
-      if (isNewDay) {
-        if (today.difference(lastAdDate).inDays > 1) {
-          dailyStreak = 0;
+        int adsWatchedToday = currentData['adsWatchedToday'];
+        int dailyStreak = currentData['dailyStreak'];
+
+        if (isNewDay) {
+          if (today.difference(lastAdDate).inDays > 1) {
+            dailyStreak = 0;
+          }
+          adsWatchedToday = 0;
         }
-        adsWatchedToday = 0;
-      }
 
-      if (adsWatchedToday >= 10) {
-        return {'success': false, 'message': 'Daily reward limit reached.'};
-      }
+        if (!isGameReward && adsWatchedToday >= 10) {
+          return {'success': false, 'message': 'Daily reward limit reached.'};
+        }
 
-      adsWatchedToday++;
-      int newPoints = (currentData['points'] ?? 0) + pointsToAward;
+        adsWatchedToday++;
+        int newPoints = (currentData['points'] ?? 0) + pointsToAward;
 
-      bool dailyGoalCompleted = false;
-      if (adsWatchedToday == 5) {
-        dailyStreak++;
-        dailyGoalCompleted = true;
-      }
+        bool dailyGoalCompleted = false;
+        if (adsWatchedToday == 5) {
+          dailyStreak++;
+          dailyGoalCompleted = true;
+        }
 
-      UserTier currentTier = UserTier.values[currentData['tier']];
-      UserTier newTier = currentTier;
-      bool tierPromoted = false;
-      String newTierName = '';
+        UserTier currentTier = UserTier.values[currentData['tier']];
+        UserTier newTier = currentTier;
+        bool tierPromoted = false;
+        String newTierName = '';
 
-      if (dailyStreak >= 30 && newTier == UserTier.silver) {
-        newTier = UserTier.gold;
-        tierPromoted = true;
-        newTierName = 'Gold';
-      } else if (dailyStreak >= 7 && newTier == UserTier.bronze) {
-        newTier = UserTier.silver;
-        tierPromoted = true;
-        newTierName = 'Silver';
-      }
+        if (dailyStreak >= 30 && newTier == UserTier.silver) {
+          newTier = UserTier.gold;
+          tierPromoted = true;
+          newTierName = 'Gold';
+        } else if (dailyStreak >= 7 && newTier == UserTier.bronze) {
+          newTier = UserTier.silver;
+          tierPromoted = true;
+          newTierName = 'Silver';
+        }
 
-      final Map<String, dynamic> updatedData = {
-        'points': newPoints,
-        'adsWatchedToday': adsWatchedToday,
-        'dailyStreak': dailyStreak,
-        'lastAdWatchedDate': Timestamp.now(),
-        'tier': newTier.index,
-        'unlocked_achievements': currentData['unlocked_achievements'] ?? [],
-      };
-      
-      List<Achievement> newlyUnlockedAchievements = [];
-      List<dynamic> unlockedAchievementIds = List<dynamic>.from(updatedData['unlocked_achievements']);
+        final Map<String, dynamic> updatedData = {
+          'points': newPoints,
+          'adsWatchedToday': adsWatchedToday,
+          'dailyStreak': dailyStreak,
+          'lastAdWatchedDate': Timestamp.now(),
+          'tier': newTier.index,
+          'unlocked_achievements': currentData['unlocked_achievements'] ?? [],
+        };
+        
+        List<Achievement> newlyUnlockedAchievements = [];
+        List<dynamic> unlockedAchievementIds = List<dynamic>.from(updatedData['unlocked_achievements']);
 
-      for (var achievement in achievements) {
-        if (!unlockedAchievementIds.contains(achievement.id)) {
-          if (achievement.condition(updatedData)) {
-            newlyUnlockedAchievements.add(achievement);
-            unlockedAchievementIds.add(achievement.id);
+        for (var achievement in achievements) {
+          if (!unlockedAchievementIds.contains(achievement.id)) {
+            if (achievement.condition(updatedData)) {
+              newlyUnlockedAchievements.add(achievement);
+              unlockedAchievementIds.add(achievement.id);
+            }
           }
         }
-      }
 
-      if (newlyUnlockedAchievements.isNotEmpty) {
-        updatedData['unlocked_achievements'] = unlockedAchievementIds;
-      }
+        if (newlyUnlockedAchievements.isNotEmpty) {
+          updatedData['unlocked_achievements'] = unlockedAchievementIds;
+        }
 
+        transaction.set(userDocRef, updatedData, SetOptions(merge: true));
 
-      final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      await userDocRef.set(updatedData, SetOptions(merge: true));
+        _userData = updatedData; 
+        notifyListeners();
 
-      _userData = updatedData;
-      notifyListeners();
-
-      return {
-        'success': true,
-        'dailyGoalCompleted': dailyGoalCompleted,
-        'newStreak': dailyStreak,
-        'tierPromoted': tierPromoted,
-        'newTierName': newTierName,
-        'unlockedAchievements': newlyUnlockedAchievements,
-      };
+        return {
+          'success': true,
+          'dailyGoalCompleted': dailyGoalCompleted,
+          'newStreak': dailyStreak,
+          'tierPromoted': tierPromoted,
+          'newTierName': newTierName,
+          'unlockedAchievements': newlyUnlockedAchievements,
+        };
+      });
 
     } catch (error, stackTrace) {
       developer.log('Error updating user data', name: 'UserDataProvider', error: error, stackTrace: stackTrace);
