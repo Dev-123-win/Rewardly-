@@ -41,7 +41,7 @@ final List<Achievement> achievements = [
     id: 'silver_tier',
     title: 'Silver Tier',
     description: 'Reach the Silver tier.',
-    icon: Icons.shield_outlined,
+    icon: Icons.shield_outlined, // Corrected Icon
     condition: (userData) => (userData['tier'] ?? 0) >= 1,
   ),
   Achievement(

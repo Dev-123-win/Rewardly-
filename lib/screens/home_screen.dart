@@ -19,21 +19,29 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final AdService _adService = AdService();
   bool _isAdShowing = false;
   bool _isHintAdShowing = false;
   bool _isAdmin = false;
   BannerAd? _bannerAd;
   late final WebViewController _webViewController;
+  int? _queuedGameCoins;
 
   @override
   void initState() {
     super.initState();
-    _adService.loadRewardedAd();
-    _adService.loadRewardedInterstitialAd();
+    adService.loadRewardedAd();
+    adService.loadRewardedInterstitialAd();
     _checkAdminStatus();
     _loadBannerAd();
     _initWebViewController();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    // The WebView controller doesn't need explicit disposal with recent versions
+    // of the plugin, but it's good practice if you have specific cleanup.
+    super.dispose();
   }
 
   void _initWebViewController() {
@@ -44,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'Print',
         onMessageReceived: (JavaScriptMessage message) {
           final parts = message.message.split(':');
+          if (parts.isEmpty) return;
           final command = parts[0];
           final value = parts.length > 1 ? parts[1] : null;
 
@@ -57,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
       )
-      ..loadFlutterAsset('endless_runner_game/index.html');
+      ..loadFlutterAsset('assets/endless_runner_game/index.html');
   }
 
   void _loadBannerAd() {
@@ -66,9 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          setState(() {});
-        },
+        onAdLoaded: (ad) => setState(() {}),
         onAdFailedToLoad: (ad, err) {
           ad.dispose();
         },
@@ -79,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _checkAdminStatus() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final idTokenResult = await user.getIdTokenResult();
+      final idTokenResult = await user.getIdTokenResult(true); // Force refresh
       if (mounted) {
         setState(() {
           _isAdmin = idTokenResult.claims?['admin'] == true;
@@ -92,45 +99,40 @@ class _HomeScreenState extends State<HomeScreen> {
     double conversionRate;
     switch (tier) {
       case UserTier.gold:
-        conversionRate = 1.0; // 1000 coins = 1000 points
+        conversionRate = 1.0;
         break;
       case UserTier.silver:
-        conversionRate = 0.75; // 1000 coins = 750 points
+        conversionRate = 0.75;
         break;
       case UserTier.bronze:
-        conversionRate = 0.5; // 1000 coins = 500 points
+        conversionRate = 0.5;
         break;
     }
     return (coins * conversionRate).floor();
   }
 
   Future<void> _handleGameCoinsCollected(int coins) async {
+    if (_isAdShowing) {
+      _queuedGameCoins = coins;
+      return;
+    }
     if (!mounted) return;
+
     final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
     final userTier = _getUserTier(userDataProvider.userData);
     final pointsToAward = _getPointsForCoins(userTier, coins);
 
     if (pointsToAward > 0) {
-       final result = await userDataProvider.handleReward(pointsToAward, isGameReward: true);
-       if (mounted && result['success']) {
-         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('You converted $coins coins into $pointsToAward points!'),
-              duration: const Duration(seconds: 3),
-              backgroundColor: Theme.of(context).primaryColor,
-            ),
-          );
-           _checkAchievements(result);
-       }
+      await _processReward(pointsToAward, isGameReward: true, gameCoins: coins);
     }
   }
 
   void _handleGameAd() {
-    _adService.showRewardedAd(
+    adService.showRewardedAd(
       onUserEarnedReward: (reward) {
         _webViewController.runJavaScript('revivePlayer()');
       },
-      onAdDismissed: () {},
+      onAdDismissed: _onAdDismissed,
     );
   }
 
@@ -139,80 +141,92 @@ class _HomeScreenState extends State<HomeScreen> {
     final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
     final userTier = _getUserTier(userDataProvider.userData);
     final pointsToAward = _getPointsForTierFromAds(userTier);
-    final result = await userDataProvider.handleReward(pointsToAward, isGameReward: false);
+    await _processReward(pointsToAward, isGameReward: false);
+  }
 
-    if (mounted && result['success']) {
-      if (result['dailyGoalCompleted']) {
-         ScaffoldMessenger.of(context).showSnackBar(
+  Future<void> _processReward(int points, {required bool isGameReward, int? gameCoins}) async {
+    if (!mounted) return;
+    final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final result = await userDataProvider.handleReward(points, isGameReward: isGameReward);
+
+    if (mounted) {
+      if (result['success']) {
+        if (isGameReward) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('You converted $gameCoins coins into $points points!'),
+              backgroundColor: Theme.of(context).primaryColor,
+            ),
+          );
+        } else {
+           if (result['dailyGoalCompleted']) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               SnackBar(
+                 content: Text('Daily goal complete! Your streak is now ${result['newStreak']} days.'),
+               ),
+             );
+           }
+        }
+
+        if (result['tierPromoted']) {
+          _showTierPromotionDialog(result['newTierName']);
+        }
+        _checkAchievements(result);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Daily goal complete! Your streak is now ${result['newStreak']} days.'),
-            duration: const Duration(seconds: 2),
+            content: Text(result['message'] ?? 'An error occurred while processing your reward.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
-       if (result['tierPromoted']) {
-        _showTierPromotionDialog(result['newTierName']);
+    }
+  }
+
+  void _onAdDismissed() {
+    if (mounted) {
+      setState(() {
+        _isAdShowing = false;
+      });
+      if (_queuedGameCoins != null) {
+        _handleGameCoinsCollected(_queuedGameCoins!);
+        _queuedGameCoins = null;
       }
-        _checkAchievements(result);
-    } else if (mounted) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'An error occurred.'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
     }
   }
 
   void _checkAchievements(Map<String, dynamic> result) {
-    if (result['unlockedAchievements'] != null && result['unlockedAchievements'].isNotEmpty) {
+    if (result['unlockedAchievements'] != null &&
+        result['unlockedAchievements'].isNotEmpty) {
       for (var achievement in result['unlockedAchievements']) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Achievement Unlocked: ${achievement.title}'),
             backgroundColor: Colors.amber,
-            duration: const Duration(seconds: 3),
           ),
         );
       }
     }
   }
 
-  void _showRewardedAd(UserTier userTier) {
-    setState(() {
-      _isAdShowing = true;
-    });
-
-    _adService.showRewardedAd(
+  void _showRewardedAd() {
+    setState(() => _isAdShowing = true);
+    adService.showRewardedAd(
       onUserEarnedReward: (reward) => _handleAdWatched(),
-      onAdDismissed: () {
-        setState(() {
-          _isAdShowing = false;
-        });
-      },
+      onAdDismissed: _onAdDismissed,
     );
   }
 
   void _showRewardedInterstitialAd() {
-    setState(() {
-      _isHintAdShowing = true;
-    });
-
-    _adService.showRewardedInterstitialAd(
+    setState(() => _isHintAdShowing = true);
+    adService.showRewardedInterstitialAd(
       onUserEarnedReward: (reward) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Hint: Complete your profile to earn extra points!'),
-            duration: Duration(seconds: 5),
-          ),
+          const SnackBar(content: Text('Hint: Complete your profile to earn extra points!')),
         );
       },
-      onAdDismissed: () {
-        setState(() {
-          _isHintAdShowing = false;
-        });
-      },
+      onAdDismissed: () => setState(() => _isHintAdShowing = false),
     );
   }
 
@@ -223,10 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Congratulations!'),
         content: Text('You have been promoted to the $tierName tier!'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Awesome!'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Awesome!')),
         ],
       ),
     );
@@ -234,27 +245,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int _getPointsForTierFromAds(UserTier tier) {
     switch (tier) {
-      case UserTier.gold:
-        return 60;
-      case UserTier.silver:
-        return 54;
-      case UserTier.bronze:
-        return 48;
+      case UserTier.gold: return 60;
+      case UserTier.silver: return 54;
+      case UserTier.bronze: return 48;
     }
   }
 
   UserTier _getUserTier(Map<String, dynamic>? userData) {
-    final tierIndex = userData?['tier'] ?? 0;
+    final tierIndex = userData?['tier'] as int? ?? 0;
     if (tierIndex >= 0 && tierIndex < UserTier.values.length) {
       return UserTier.values[tierIndex];
     }
     return UserTier.bronze;
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
@@ -273,8 +279,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.info_outline),
-            onPressed: () => context.go('/about'),
-            tooltip: 'About',
+            onPressed: () => context.go('/how-it-works'),
+            tooltip: 'How It Works',
           ),
         ],
       ),
@@ -307,11 +313,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        _buildWatchAdButton(theme, userTier, adsWatchedToday >= 10),
+                        _buildWatchAdButton(userTier, adsWatchedToday >= 10),
                         const SizedBox(height: 20),
-                        _buildGetHintButton(theme),
+                        _buildGetHintButton(),
                         const SizedBox(height: 20),
-                        _buildNavigationButtons(context, theme),
+                        _buildNavigationButtons(context),
                       ],
                     ),
                   ),
@@ -331,76 +337,40 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWatchAdButton(ThemeData theme, UserTier userTier, bool isAdLimitReached) {
+  Widget _buildWatchAdButton(UserTier userTier, bool isAdLimitReached) {
     return ElevatedButton.icon(
-      onPressed: _isAdShowing || isAdLimitReached
-          ? null
-          : () => _showRewardedAd(userTier),
+      onPressed: _isAdShowing || isAdLimitReached ? null : _showRewardedAd,
       icon: _isAdShowing
-          ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
-            )
+          ? const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
           : const Icon(Icons.movie_creation_outlined),
       label: Text(
-        isAdLimitReached
-            ? 'Daily Limit Reached'
-            : _isAdShowing
-                ? 'Loading Ad...'
-                : 'Watch Ad, Earn Points',
+        isAdLimitReached ? 'Daily Limit Reached' : _isAdShowing ? 'Loading Ad...' : 'Watch Ad, Earn Points',
       ),
     );
   }
 
-  Widget _buildGetHintButton(ThemeData theme) {
+  Widget _buildGetHintButton() {
     return ElevatedButton.icon(
       onPressed: _isHintAdShowing ? null : _showRewardedInterstitialAd,
       icon: _isHintAdShowing
-          ? const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
-            )
+          ? const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
           : const Icon(Icons.lightbulb_outline),
-      label: Text(
-        _isHintAdShowing ? 'Loading Hint...' : 'Get a Hint',
-      ),
+      label: Text(_isHintAdShowing ? 'Loading Hint...' : 'Get a Hint'),
     );
   }
 
-  Widget _buildNavigationButtons(BuildContext context, ThemeData theme) {
+  Widget _buildNavigationButtons(BuildContext context) {
     return Column(
       children: [
-        _buildNavButton(
-          context,
-          icon: Icons.person_outline,
-          label: 'My Profile',
-          onPressed: () => context.go('/profile'),
-        ),
+        _buildNavButton(context, icon: Icons.person_outline, label: 'My Profile', onPressed: () => context.go('/profile')),
         const SizedBox(height: 15),
-        _buildNavButton(
-          context,
-          icon: Icons.account_balance_wallet_outlined,
-          label: 'Withdraw Points',
-          onPressed: () => context.go('/withdrawal'),
-        ),
+        _buildNavButton(context, icon: Icons.account_balance_wallet_outlined, label: 'Withdraw Points', onPressed: () => context.go('/withdrawal')),
         const SizedBox(height: 15),
-        _buildNavButton(
-          context,
-          icon: Icons.history,
-          label: 'Withdrawal History',
-          onPressed: () => context.go('/withdrawal-history'),
-        ),
+        _buildNavButton(context, icon: Icons.history, label: 'Withdrawal History', onPressed: () => context.go('/withdrawal_history')),
         if (_isAdmin)
           Padding(
             padding: const EdgeInsets.only(top: 15.0),
-            child: _buildNavButton(
-              context,
-              icon: Icons.admin_panel_settings_outlined,
-              label: 'Admin Panel',
-              onPressed: () => context.go('/admin'),
-            ),
+            child: _buildNavButton(context, icon: Icons.admin_panel_settings_outlined, label: 'Admin Panel', onPressed: () => context.go('/admin')),
           ),
       ],
     );
@@ -420,12 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Icon(icon, size: 28, color: theme.colorScheme.primary),
               const SizedBox(width: 16),
-              Text(
-                label,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text(label, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
               Icon(Icons.arrow_forward_ios_rounded, size: 18, color: theme.colorScheme.onSurface.withAlpha(153)),
             ],
@@ -433,13 +398,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _bannerAd?.dispose();
-    _webViewController.clearCache();
-    _webViewController.clearLocalStorage();
-    super.dispose();
   }
 }

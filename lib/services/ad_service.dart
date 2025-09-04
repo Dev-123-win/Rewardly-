@@ -7,6 +7,11 @@ class AdService {
   RewardedInterstitialAd? _rewardedInterstitialAd;
   NativeAd? _nativeAd;
 
+  bool _isRewardedAdLoading = false;
+  bool _isAppOpenAdLoading = false;
+  bool _isInterstitialAdLoading = false;
+  bool _isRewardedInterstitialAdLoading = false;
+
   static const String rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917'; // Test ID
   static const String bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111'; // Test ID
   static const String appOpenAdUnitId = 'ca-app-pub-3940256099942544/3419835294'; // Test ID
@@ -15,15 +20,20 @@ class AdService {
   static const String nativeAdUnitId = 'ca-app-pub-3940256099942544/2247696110'; // Test ID
 
   void loadRewardedAd() {
+    if (_isRewardedAdLoading) return;
+    _isRewardedAdLoading = true;
+
     RewardedAd.load(
       adUnitId: rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (RewardedAd ad) {
           _rewardedAd = ad;
+          _isRewardedAdLoading = false;
         },
         onAdFailedToLoad: (LoadAdError error) {
           _rewardedAd = null;
+          _isRewardedAdLoading = false;
         },
       ),
     );
@@ -57,15 +67,20 @@ class AdService {
   }
 
   void loadAppOpenAd() {
+    if (_isAppOpenAdLoading) return;
+    _isAppOpenAdLoading = true;
+
     AppOpenAd.load(
       adUnitId: appOpenAdUnitId,
       request: const AdRequest(),
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (ad) {
           _appOpenAd = ad;
+          _isAppOpenAdLoading = false;
         },
         onAdFailedToLoad: (error) {
           _appOpenAd = null;
+          _isAppOpenAdLoading = false;
         },
       ),
     );
@@ -91,15 +106,20 @@ class AdService {
   }
 
   void loadInterstitialAd() {
+    if (_isInterstitialAdLoading) return;
+    _isInterstitialAdLoading = true;
+
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
           _interstitialAd = ad;
+          _isInterstitialAdLoading = false;
         },
         onAdFailedToLoad: (LoadAdError error) {
           _interstitialAd = null;
+          _isInterstitialAdLoading = false;
         },
       ),
     );
@@ -125,15 +145,20 @@ class AdService {
   }
 
   void loadRewardedInterstitialAd() {
+    if (_isRewardedInterstitialAdLoading) return;
+    _isRewardedInterstitialAdLoading = true;
+
     RewardedInterstitialAd.load(
       adUnitId: rewardedInterstitialAdUnitId,
       request: const AdRequest(),
       rewardedInterstitialAdLoadCallback: RewardedInterstitialAdLoadCallback(
         onAdLoaded: (ad) {
           _rewardedInterstitialAd = ad;
+          _isRewardedInterstitialAdLoading = false;
         },
         onAdFailedToLoad: (LoadAdError error) {
           _rewardedInterstitialAd = null;
+          _isRewardedInterstitialAdLoading = false;
         },
       ),
     );

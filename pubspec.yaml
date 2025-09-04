@@ -78,9 +78,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
-    - endless_runner_game/assets/models/
-    - endless_runner_game/assets/textures/
-    - endless_runner_game/assets/sounds/
+    - assets/endless_runner_game/
     - PRIVACY_POLICY.md
     - TERMS_AND_CONDITIONS.md
 

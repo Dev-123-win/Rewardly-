@@ -120,14 +120,17 @@ class UserDataProvider with ChangeNotifier {
         bool tierPromoted = false;
         String newTierName = '';
 
+        // Use separate if statements to allow for multiple tier promotions in one transaction.
+        if (dailyStreak >= 7 && newTier == UserTier.bronze) {
+          newTier = UserTier.silver;
+          tierPromoted = true;
+          newTierName = 'Silver';
+        }
+
         if (dailyStreak >= 30 && newTier == UserTier.silver) {
           newTier = UserTier.gold;
           tierPromoted = true;
           newTierName = 'Gold';
-        } else if (dailyStreak >= 7 && newTier == UserTier.bronze) {
-          newTier = UserTier.silver;
-          tierPromoted = true;
-          newTierName = 'Silver';
         }
 
         final Map<String, dynamic> updatedData = {

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rewardly/app_logo.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -10,18 +12,26 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  late StreamSubscription<User?> _authSubscription;
+
   @override
   void initState() {
     super.initState();
-    // Navigate to the home screen after a delay
-    Future.delayed(const Duration(seconds: 3), () {
-      // Use a mounted check to avoid calling context on unmounted widgets
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (mounted) {
-        // You can replace this with your actual home screen navigation logic
-        // For example, using go_router
-        context.go('/');
+        if (user == null) {
+          context.go('/login');
+        } else {
+          context.go('/');
+        }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
   }
 
   @override
@@ -29,7 +39,14 @@ class _SplashScreenState extends State<SplashScreen> {
     return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: AppLogo(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AppLogo(),
+            SizedBox(height: 20),
+            CircularProgressIndicator(),
+          ],
+        ),
       ),
     );
   }

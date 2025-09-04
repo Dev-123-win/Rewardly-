@@ -15,6 +15,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscureText = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -29,6 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      if (mounted) {
+        context.go('/');
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
@@ -111,10 +123,20 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
-      obscureText: true,
-      decoration: const InputDecoration(
+      obscureText: _obscureText,
+      decoration: InputDecoration(
         labelText: 'Password',
-        prefixIcon: Icon(Icons.lock_outline),
+        prefixIcon: const Icon(Icons.lock_outline),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscureText ? Icons.visibility_off : Icons.visibility,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscureText = !_obscureText;
+            });
+          },
+        ),
       ),
       validator: (value) =>
           value == null || value.length < 6 ? 'Password is too short' : null,
@@ -147,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const Text('|'),
         TextButton(
-          onPressed: () => context.go('/privacy'),
+          onPressed: () => context.go('/privacy-policy'),
           child: const Text('Privacy Policy'),
         ),
       ],

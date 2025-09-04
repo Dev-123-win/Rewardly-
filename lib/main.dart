@@ -20,7 +20,7 @@ import 'package:rewardly/screens/privacy_policy_screen.dart';
 import 'package:rewardly/screens/withdrawal_screen.dart';
 import 'package:rewardly/screens/withdrawal_history_screen.dart';
 import 'package:rewardly/screens/referral_screen.dart';
-import 'package:rewardly/screens/game_screen.dart'; // Import the game screen
+import 'package:rewardly/screens/game_screen.dart';
 import 'package:rewardly/services/ad_service.dart';
 import 'package:rewardly/services/notification_service.dart';
 import 'package:rewardly/services/remote_config_service.dart';
@@ -38,7 +38,6 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // TODO: Replace with your own reCAPTCHA v3 site key
   await FirebaseAppCheck.instance.activate(
     webProvider: ReCaptchaV3Provider('recaptcha-v3-site-key'),
     androidProvider: AndroidProvider.playIntegrity,
@@ -76,7 +75,11 @@ class ThemeProvider with ChangeNotifier {
   }
 }
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final _shellNavigatorKey = GlobalKey<NavigatorState>();
+
 final _router = GoRouter(
+  navigatorKey: _rootNavigatorKey,
   initialLocation: '/splash',
   routes: [
     GoRoute(
@@ -84,56 +87,70 @@ final _router = GoRouter(
       builder: (context, state) => const SplashScreen(),
     ),
     GoRoute(
-      path: '/',
-      builder: (context, state) => const MainScreen(),
-      routes: [
-        GoRoute(
-          path: 'profile',
-          builder: (context, state) => const ProfileScreen(),
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/register',
+      builder: (context, state) => const RegisterScreen(),
+    ),
+    GoRoute(
+      path: '/terms',
+      builder: (context, state) => const TermsScreen(),
+    ),
+    GoRoute(
+      path: '/privacy-policy',
+      builder: (context, state) => const PrivacyPolicyScreen(),
+    ),
+    GoRoute(
+      path: '/withdrawal',
+      builder: (context, state) => const WithdrawalScreen(),
+    ),
+    GoRoute(
+      path: '/withdrawal_history',
+      builder: (context, state) => const WithdrawalHistoryScreen(),
+    ),
+    GoRoute(
+      path: '/referral',
+      builder: (context, state) => const ReferralScreen(),
+    ),
+    GoRoute(
+      path: '/admin',
+      builder: (context, state) => const AdminScreen(),
+    ),
+    GoRoute(
+      path: '/game',
+      builder: (context, state) => const GameScreen(),
+    ),
+    GoRoute(
+      path: '/achievements',
+      builder: (context, state) => const AchievementsScreen(),
+    ),
+    GoRoute(
+      path: '/how-it-works',
+      builder: (context, state) => const HowItWorksScreen(),
+    ),
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) {
+        return MainScreen(navigationShell: navigationShell);
+      },
+      branches: [
+        StatefulShellBranch(
+          navigatorKey: _shellNavigatorKey,
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ],
         ),
-        GoRoute(
-          path: 'login',
-          builder: (context, state) => const LoginScreen(),
-        ),
-        GoRoute(
-          path: 'register',
-          builder: (context, state) => const RegisterScreen(),
-        ),
-        GoRoute(
-          path: 'terms',
-          builder: (context, state) => const TermsScreen(),
-        ),
-        GoRoute(
-          path: 'privacy-policy',
-          builder: (context, state) => const PrivacyPolicyScreen(),
-        ),
-        GoRoute(
-          path: 'withdrawal',
-          builder: (context, state) => const WithdrawalScreen(),
-        ),
-        GoRoute(
-          path: 'withdrawal_history',
-          builder: (context, state) => const WithdrawalHistoryScreen(),
-        ),
-        GoRoute(
-          path: 'referral',
-          builder: (context, state) => const ReferralScreen(),
-        ),
-        GoRoute(
-          path: 'admin',
-          builder: (context, state) => const AdminScreen(),
-        ),
-        GoRoute(
-          path: 'game',
-          builder: (context, state) => const GameScreen(),
-        ),
-        GoRoute(
-          path: 'achievements',
-          builder: (context, state) => const AchievementsScreen(),
-        ),
-        GoRoute(
-          path: 'how-it-works',
-          builder: (context, state) => const HowItWorksScreen(),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
+            ),
+          ],
         ),
       ],
     ),
@@ -157,8 +174,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _appLifecycleReactor = AppLifecycleReactor(adService: adService);
     _appLifecycleReactor.listenToAppStateChanges();
-    _connectivitySubscription =
-        Connectivity().onConnectivityChanged.listen((result) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((result) {
       setState(() {
         _isOffline = result.contains(ConnectivityResult.none);
       });
@@ -261,29 +277,13 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class MainScreen extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
 
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
-
-  static const List<Widget> _widgetOptions = <Widget>[
-    HomeScreen(),
-    ProfileScreen(),
-  ];
+  const MainScreen({super.key, required this.navigationShell});
 
   void _onItemTapped(int index) {
-    if (index == 1) {
-      context.go('/profile');
-    } else {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
+    navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
   }
 
   @override
@@ -291,7 +291,7 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+        child: navigationShell,
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -304,7 +304,7 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Profile',
           ),
         ],
-        currentIndex: _selectedIndex,
+        currentIndex: navigationShell.currentIndex,
         onTap: _onItemTapped,
       ),
     );
@@ -318,8 +318,7 @@ class AppLifecycleReactor {
 
   void listenToAppStateChanges() {
     AppStateEventNotifier.startListening();
-    AppStateEventNotifier.appStateStream
-        .forEach((state) => _onAppStateChanged(state));
+    AppStateEventNotifier.appStateStream.forEach((state) => _onAppStateChanged(state));
   }
 
   void _onAppStateChanged(AppState appState) {

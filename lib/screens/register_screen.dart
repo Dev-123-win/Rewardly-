@@ -22,6 +22,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final DeviceInfoService _deviceInfoService = DeviceInfoService();
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
+    super.dispose();
+  }
 
   String _generateReferralCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -87,7 +98,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (referredBy.isNotEmpty) {
           final querySnapshot = await firestore
               .collection('users')
-              .where('referralCode', isEqualTo: referredBy)
+              .where('referralCode', isEqualTo: referredBy.toUpperCase())
               .limit(1)
               .get();
 
@@ -232,10 +243,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
-      obscureText: true,
-      decoration: const InputDecoration(
+      obscureText: _obscurePassword,
+      decoration: InputDecoration(
         labelText: 'Password',
-        prefixIcon: Icon(Icons.lock_outlined),
+        prefixIcon: const Icon(Icons.lock_outline),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscurePassword = !_obscurePassword;
+            });
+          },
+        ),
       ),
       validator: (value) =>
           value == null || value.length < 6 ? 'Password is too short' : null,
@@ -245,10 +266,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildConfirmPasswordField() {
     return TextFormField(
       controller: _confirmPasswordController,
-      obscureText: true,
-      decoration: const InputDecoration(
+      obscureText: _obscureConfirmPassword,
+      decoration: InputDecoration(
         labelText: 'Confirm Password',
-        prefixIcon: Icon(Icons.lock_outlined),
+        prefixIcon: const Icon(Icons.lock_outlined),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscureConfirmPassword = !_obscureConfirmPassword;
+            });
+          },
+        ),
       ),
       validator: (value) => value != _passwordController.text
           ? 'Passwords do not match'
@@ -256,16 +287,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-    Widget _buildReferralCodeField() {
+  Widget _buildReferralCodeField() {
     return TextFormField(
       controller: _referralCodeController,
       decoration: const InputDecoration(
         labelText: 'Referral Code (Optional)',
         prefixIcon: Icon(Icons.group_add_outlined),
       ),
+      textCapitalization: TextCapitalization.characters,
     );
   }
-
 
   Widget _buildRegisterButton() {
     return ElevatedButton(
@@ -293,7 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const Text('|'),
         TextButton(
-          onPressed: () => context.go('/privacy'),
+          onPressed: () => context.go('/privacy-policy'),
           child: const Text('Privacy Policy'),
         ),
       ],
