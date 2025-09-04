@@ -2,39 +2,33 @@
 
 ## Overview
 
-Rewardly is a mobile application that allows users to earn points by watching ads and playing a game. These points can then be redeemed for rewards. The app also includes a tier system that rewards users for their engagement.
+Rewardly is a mobile application designed to reward users for watching ads and playing games. It incorporates a tiered system, daily tasks, and a referral program to engage and retain users. The app also includes administrative features for managing user data and application settings.
 
 ## Features
 
-*   **User Authentication:** Users can create an account and log in using their email and password.
-*   **Points System:** Users can earn points by watching ads and playing a game.
-*   **Tier System:** Users can progress through three tiers: Bronze, Silver, and Gold. Each tier has its own set of benefits.
-    *   **Silver Tier:** 5,000 points OR a 7-day streak.
-    *   **Gold Tier:** 10,000 points OR a 30-day streak.
-*   **Achievements:** Users can unlock achievements by completing certain tasks.
-*   **Admin Panel:** Admins can view user data and manage the app.
-*   **Dark Mode:** The app includes a dark mode for users who prefer it.
+### User Features
 
-## Design
+*   **Authentication:** Users can sign up and log in using their email and password.
+*   **Points System:** Users earn points for watching ads and playing games.
+*   **Tier System:** Users can progress through different tiers (e.g., Bronze, Silver, Gold) based on their point accumulation.
+*   **Daily Tasks:** Users are encouraged to watch a certain number of ads daily to maintain a streak and earn bonus points.
+*   **Withdrawal System:** Users can withdraw their earnings through various methods.
+*   **Referral Program:** Users can refer others to the app and earn rewards.
+*   **Achievements:** Users can unlock achievements by completing specific milestones.
+*   **Profile Management:** Users can view their profile, points, tier, and other relevant information.
+*   **Informational Screens:** The app includes screens for "About Us," "How It Works," "Terms of Service," and "Privacy Policy."
 
-*   **Color Scheme:** The app uses a deep purple color scheme.
-*   **Typography:** The app uses the Oswald and Roboto fonts.
-*   **Iconography:** The app uses Material Design icons.
+### Admin Features
 
-## Bug Fixes and Improvements
+*   **Admin Panel:** A dedicated screen for administrators to manage the app.
+*   **User History:** Admins can view user withdrawal history and other relevant data.
 
-*   **Critical Security Bug: Invalid API Key:** Fixed a critical security bug where the app was using an invalid API key. This was resolved by reconfiguring the app to use the correct Firebase project, `rewardly-mini`, and regenerating the `firebase_options.dart` file.
-*   **Critical Security Bug: Invalid App Check Key:** Fixed a critical security bug where the Firebase App Check was configured with a placeholder reCAPTCHA key.
-*   **Critical Bug: Memory Leak:** Fixed a memory leak in the `AppLifecycleReactor` class.
-*   **Poor User Experience: Flawed Navigation:** Re-architected the navigation to use a `StatefulShellRoute`, which provides a more consistent and user-friendly experience.
-*   **Critical Bug: Flawed Tier Promotion:** Fixed a critical bug in the tier promotion logic.
-*   **Logic Bug: Redundant and Inconsistent Tier Calculation:** Removed redundant tier calculation logic from the `HomeScreen`.
-*   **UI Bug: Stale Admin Status:** Implemented `WidgetsBindingObserver` to automatically refresh the user's admin status.
-*   **Poor User Experience: SnackBar Spam:** Improved the achievement notification to prevent `SnackBar` spam.
-*   **Critical Bug: App Stuck on Loading Screen:** Fixed a critical bug that caused the app to get stuck on the loading screen. The `AuthProvider` was completely rewritten to correctly manage authentication state, including loading and error states, and to notify the router when the user's authentication status changes. This ensures that the app reliably navigates to the correct screen after loading.
-*   **Redundant Tier Logic:** Moved the tier name and color logic to the `UserTier` model.
-*   **Poor UX:** Added a logout button to the `ProfileScreen`.
-*   **Inconsistent Design:** Used a `Consumer` widget to get the user's data from the `UserDataProvider`.
-*   **Improved UI:** Improved the UI of the `ProfileScreen` to make it more visually appealing and user-friendly.
-*   **Feature Removal: Leaderboard:** Removed the leaderboard feature, including the backend Cloud Function, the `LeaderboardScreen`, and all associated UI elements, as requested.
-*   **Improved Code Quality:** Resolved a lint warning in the `UserDataProvider` by making the `_withdrawalHistory` list `final` to improve code robustness.
+### Technical Features
+
+*   **Firebase Integration:** The app uses Firebase for authentication, database (Firestore), and remote configuration.
+*   **Ad Integration:** The app integrates with an ad service to display rewarded and rewarded interstitial ads.
+*   **Push Notifications:** The app uses a notification service to send push notifications to users.
+*   **State Management:** The app uses the `provider` package for state management.
+*   **Routing:** The app uses the `go_router` package for navigation.
+*   **Theming:** The app includes a theme provider to manage the visual theme of the application.
+

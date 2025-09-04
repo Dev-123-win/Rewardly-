@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rewardly/providers/user_data_provider.dart';
 
 class AuthProvider with ChangeNotifier {
+  final BuildContext context;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   User? _user;
@@ -14,7 +17,7 @@ class AuthProvider with ChangeNotifier {
   User? get user => _user;
   bool get isLoading => _isLoading;
 
-  AuthProvider() {
+  AuthProvider(this.context) {
     _authStateSubscription = _auth.authStateChanges().listen(_onAuthStateChanged, onError: (error) {
       _isLoading = false;
       notifyListeners();
@@ -24,6 +27,11 @@ class AuthProvider with ChangeNotifier {
   Future<void> _onAuthStateChanged(User? user) async {
     _user = user;
     _isLoading = false;
+    if (user != null) {
+      await Provider.of<UserDataProvider>(context, listen: false).init();
+    } else {
+      Provider.of<UserDataProvider>(context, listen: false).clearData();
+    }
     notifyListeners();
   }
 
