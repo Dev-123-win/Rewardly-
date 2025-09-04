@@ -11,6 +11,7 @@ import 'package:rewardly/screens/admin_screen.dart';
 import 'package:rewardly/screens/game_screen.dart';
 import 'package:rewardly/screens/home_screen.dart';
 import 'package:rewardly/screens/how_it_works_screen.dart';
+import 'package:rewardly/screens/leaderboard_screen.dart';
 import 'package:rewardly/screens/login_screen.dart';
 import 'package:rewardly/screens/privacy_policy_screen.dart';
 import 'package:rewardly/screens/profile_screen.dart';
@@ -123,6 +124,14 @@ final router = GoRouter(
                     GoRoute(
                         path: '/',
                         builder: (context, state) => const HomeScreen(),
+                    ),
+                ],
+            ),
+            StatefulShellBranch(
+                routes: [
+                    GoRoute(
+                        path: '/leaderboard',
+                        builder: (context, state) => const LeaderboardScreen(),
                     ),
                 ],
             ),

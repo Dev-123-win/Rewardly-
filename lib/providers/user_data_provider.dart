@@ -11,11 +11,16 @@ class UserDataProvider with ChangeNotifier {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   List<Map<String, dynamic>> _withdrawalHistory = [];
+  bool _isFetchingHistory = false;
+  bool _hasMoreHistory = true;
+  DocumentSnapshot? _lastWithdrawalDoc;
 
   Map<String, dynamic>? get userData => _userData;
   bool get isLoading => _isLoading;
   int get points => _userData?['points'] ?? 0;
   List<Map<String, dynamic>> get withdrawalHistory => _withdrawalHistory;
+  bool get isFetchingHistory => _isFetchingHistory;
+  bool get hasMoreHistory => _hasMoreHistory;
 
   UserDataProvider() {
     fetchUserData();
@@ -43,20 +48,50 @@ class UserDataProvider with ChangeNotifier {
     }
   }
 
-  Future<void> fetchWithdrawalHistory() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      final historySnapshot = await _db
-          .collection('users')
-          .doc(user.uid)
-          .collection('withdrawals')
-          .orderBy('date', descending: true)
-          .get();
+  Future<void> fetchWithdrawalHistory({bool isInitial = false}) async {
+    if (_isFetchingHistory) return;
 
-      _withdrawalHistory = historySnapshot.docs.map((doc) => doc.data()).toList();
-      notifyListeners();
+    _isFetchingHistory = true;
+    if (isInitial) {
+      _withdrawalHistory.clear();
+      _lastWithdrawalDoc = null;
+      _hasMoreHistory = true;
+    }
+    notifyListeners();
+
+    final user = _auth.currentUser;
+    if (user != null && _hasMoreHistory) {
+      try {
+        var query = _db
+            .collection('users')
+            .doc(user.uid)
+            .collection('withdrawals')
+            .orderBy('date', descending: true)
+            .limit(20);
+
+        if (_lastWithdrawalDoc != null && !isInitial) {
+          query = query.startAfterDocument(_lastWithdrawalDoc!);
+        }
+
+        final historySnapshot = await query.get();
+
+        if (historySnapshot.docs.isNotEmpty) {
+          _lastWithdrawalDoc = historySnapshot.docs.last;
+          _withdrawalHistory.addAll(historySnapshot.docs.map((doc) => doc.data()));
+        }
+
+        if (historySnapshot.docs.length < 20) {
+          _hasMoreHistory = false;
+        }
+      } catch (e) {
+        // Handle error appropriately
+      } finally {
+        _isFetchingHistory = false;
+        notifyListeners();
+      }
     }
   }
+
 
   Future<Map<String, dynamic>> handleReward(int rewardAmount, {bool isGameReward = false}) async {
     final user = _auth.currentUser;
