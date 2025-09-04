@@ -59,10 +59,12 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCvb9oSuZ_mPi_Hf9lOiVTfjWdAYV5tYjk',
-    appId: '1:34233665214:android:c2a941820c9c61b42cc0ef',
-    messagingSenderId: '34233665214',
-    projectId: 'adlingo-games',
-    storageBucket: 'adlingo-games.firebasestorage.app',
+    apiKey: 'AIzaSyCgilQj2638eAiEeJ7s0ImZvnM4Kkr-Bdk',
+    appId: '1:1056652851968:android:349e8a91bf2d45c7a8d1e5',
+    messagingSenderId: '1056652851968',
+    projectId: 'rewardly-mini',
+    databaseURL: 'https://rewardly-mini-default-rtdb.firebaseio.com',
+    storageBucket: 'rewardly-mini.firebasestorage.app',
   );
+
 }

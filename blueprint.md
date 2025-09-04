@@ -23,6 +23,7 @@ Rewardly is a mobile application that allows users to earn points by watching ad
 
 ## Bug Fixes and Improvements
 
+*   **Critical Security Bug: Invalid API Key:** Fixed a critical security bug where the app was using an invalid API key. This was resolved by reconfiguring the app to use the correct Firebase project, `rewardly-mini`, and regenerating the `firebase_options.dart` file.
 *   **Critical Security Bug: Invalid App Check Key:** Fixed a critical security bug where the Firebase App Check was configured with a placeholder reCAPTCHA key.
 *   **Critical Bug: Memory Leak:** Fixed a memory leak in the `AppLifecycleReactor` class.
 *   **Poor User Experience: Flawed Navigation:** Re-architected the navigation to use a `StatefulShellRoute`, which provides a more consistent and user-friendly experience.

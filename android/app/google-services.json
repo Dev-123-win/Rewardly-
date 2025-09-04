@@ -1,13 +1,14 @@
 {
   "project_info": {
-    "project_number": "34233665214",
-    "project_id": "adlingo-games",
-    "storage_bucket": "adlingo-games.firebasestorage.app"
+    "project_number": "1056652851968",
+    "firebase_url": "https://rewardly-mini-default-rtdb.firebaseio.com",
+    "project_id": "rewardly-mini",
+    "storage_bucket": "rewardly-mini.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:34233665214:android:c2a941820c9c61b42cc0ef",
+        "mobilesdk_app_id": "1:1056652851968:android:349e8a91bf2d45c7a8d1e5",
         "android_client_info": {
           "package_name": "com.supreet.rewardly"
         }
@@ -15,7 +16,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCvb9oSuZ_mPi_Hf9lOiVTfjWdAYV5tYjk"
+          "current_key": "AIzaSyCgilQj2638eAiEeJ7s0ImZvnM4Kkr-Bdk"
         }
       ],
       "services": {
