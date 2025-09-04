@@ -1,86 +1,62 @@
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'dart:developer' as developer;
 
 class AdService {
+  // Use test Ad Unit IDs.
+  static String get bannerAdUnitId => 'ca-app-pub-3940256099942544/6300978111';
+  static String get rewardedAdUnitId => 'ca-app-pub-3940256099942544/5224354917';
+  static String get rewardedInterstitialAdUnitId => 'ca-app-pub-3940256099942544/5354046379';
+  static String get appOpenAdUnitId => 'ca-app-pub-3940256099942544/3419835294';
+  static String get interstitialAdUnitId => 'ca-app-pub-3940256099942544/1033173712';
+
   RewardedAd? _rewardedAd;
+  RewardedInterstitialAd? _rewardedInterstitialAd;
   AppOpenAd? _appOpenAd;
   InterstitialAd? _interstitialAd;
-  RewardedInterstitialAd? _rewardedInterstitialAd;
-  NativeAd? _nativeAd;
-
-  bool _isRewardedAdLoading = false;
-  bool _isAppOpenAdLoading = false;
-  bool _isInterstitialAdLoading = false;
-  bool _isRewardedInterstitialAdLoading = false;
-
-  static const String rewardedAdUnitId = 'ca-app-pub-3940256099942544/5224354917'; // Test ID
-  static const String bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111'; // Test ID
-  static const String appOpenAdUnitId = 'ca-app-pub-3940256099942544/3419835294'; // Test ID
-  static const String interstitialAdUnitId = 'ca-app-pub-3940256099942544/1033173712'; // Test ID
-  static const String rewardedInterstitialAdUnitId = 'ca-app-pub-3940256099942544/5354046379'; // Test ID
-  static const String nativeAdUnitId = 'ca-app-pub-3940256099942544/2247696110'; // Test ID
 
   void loadRewardedAd() {
-    if (_isRewardedAdLoading) return;
-    _isRewardedAdLoading = true;
-
     RewardedAd.load(
       adUnitId: rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
-        onAdLoaded: (RewardedAd ad) {
+        onAdLoaded: (ad) {
           _rewardedAd = ad;
-          _isRewardedAdLoading = false;
         },
-        onAdFailedToLoad: (LoadAdError error) {
+        onAdFailedToLoad: (err) {
+          developer.log('RewardedAd failed to load: $err', name: 'AdService');
           _rewardedAd = null;
-          _isRewardedAdLoading = false;
         },
       ),
     );
   }
 
-  void showRewardedAd({
-    required Function(RewardItem) onUserEarnedReward,
-    required Function onAdDismissed,
-  }) {
-    if (_rewardedAd == null) {
-      loadRewardedAd();
-      return;
-    }
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (RewardedAd ad) {
-        ad.dispose();
-        onAdDismissed();
-        loadRewardedAd();
-      },
-      onAdFailedToShowFullScreenContent: (RewardedAd ad, AdError error) {
-        ad.dispose();
-        loadRewardedAd();
-      },
+  void loadRewardedInterstitialAd() {
+    RewardedInterstitialAd.load(
+      adUnitId: rewardedInterstitialAdUnitId,
+      request: const AdRequest(),
+      rewardedInterstitialAdLoadCallback: RewardedInterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedInterstitialAd = ad;
+        },
+        onAdFailedToLoad: (err) {
+          developer.log('RewardedInterstitialAd failed to load: $err', name: 'AdService');
+          _rewardedInterstitialAd = null;
+        },
+      ),
     );
-    _rewardedAd!.show(
-      onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-        onUserEarnedReward(reward);
-      },
-    );
-    _rewardedAd = null;
   }
 
   void loadAppOpenAd() {
-    if (_isAppOpenAdLoading) return;
-    _isAppOpenAdLoading = true;
-
     AppOpenAd.load(
       adUnitId: appOpenAdUnitId,
       request: const AdRequest(),
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (ad) {
           _appOpenAd = ad;
-          _isAppOpenAdLoading = false;
         },
         onAdFailedToLoad: (error) {
+          developer.log('AppOpenAd failed to load: $error', name: 'AdService');
           _appOpenAd = null;
-          _isAppOpenAdLoading = false;
         },
       ),
     );
@@ -91,35 +67,34 @@ class AdService {
       loadAppOpenAd();
       return;
     }
+
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         loadAppOpenAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        developer.log('AppOpenAd failed to show: $error', name: 'AdService');
         ad.dispose();
         loadAppOpenAd();
       },
     );
+
     _appOpenAd!.show();
     _appOpenAd = null;
   }
 
   void loadInterstitialAd() {
-    if (_isInterstitialAdLoading) return;
-    _isInterstitialAdLoading = true;
-
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
           _interstitialAd = ad;
-          _isInterstitialAdLoading = false;
         },
-        onAdFailedToLoad: (LoadAdError error) {
+        onAdFailedToLoad: (error) {
+          developer.log('InterstitialAd failed to load: $error', name: 'AdService');
           _interstitialAd = null;
-          _isInterstitialAdLoading = false;
         },
       ),
     );
@@ -130,38 +105,47 @@ class AdService {
       loadInterstitialAd();
       return;
     }
+
     _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         loadInterstitialAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        developer.log('InterstitialAd failed to show: $error', name: 'AdService');
         ad.dispose();
         loadInterstitialAd();
       },
     );
+
     _interstitialAd!.show();
     _interstitialAd = null;
   }
 
-  void loadRewardedInterstitialAd() {
-    if (_isRewardedInterstitialAdLoading) return;
-    _isRewardedInterstitialAdLoading = true;
-
-    RewardedInterstitialAd.load(
-      adUnitId: rewardedInterstitialAdUnitId,
-      request: const AdRequest(),
-      rewardedInterstitialAdLoadCallback: RewardedInterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          _rewardedInterstitialAd = ad;
-          _isRewardedInterstitialAdLoading = false;
-        },
-        onAdFailedToLoad: (LoadAdError error) {
-          _rewardedInterstitialAd = null;
-          _isRewardedInterstitialAdLoading = false;
-        },
-      ),
+  void showRewardedAd({
+    required Function(RewardItem) onUserEarnedReward,
+    required Function onAdDismissed,
+  }) {
+    if (_rewardedAd == null) {
+      loadRewardedAd();
+      onAdDismissed();
+      return;
+    }
+    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        loadRewardedAd();
+        onAdDismissed();
+      },
+      onAdFailedToShowFullScreenContent: (ad, err) {
+        developer.log('RewardedAd failed to show: $err', name: 'AdService');
+        ad.dispose();
+        loadRewardedAd();
+        onAdDismissed();
+      },
     );
+    _rewardedAd!.show(onUserEarnedReward: (ad, reward) => onUserEarnedReward(reward));
+    _rewardedAd = null;
   }
 
   void showRewardedInterstitialAd({
@@ -170,37 +154,25 @@ class AdService {
   }) {
     if (_rewardedInterstitialAd == null) {
       loadRewardedInterstitialAd();
+      onAdDismissed();
       return;
     }
-    _rewardedInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+     _rewardedInterstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        onAdDismissed();
         loadRewardedInterstitialAd();
+        onAdDismissed();
       },
-      onAdFailedToShowFullScreenContent: (ad, error) {
+      onAdFailedToShowFullScreenContent: (ad, err) {
+         developer.log('RewardedInterstitialAd failed to show: $err', name: 'AdService');
         ad.dispose();
         loadRewardedInterstitialAd();
+        onAdDismissed();
       },
     );
-    _rewardedInterstitialAd!.show(
-      onUserEarnedReward: (ad, reward) {
-        onUserEarnedReward(reward);
-      },
-    );
+    _rewardedInterstitialAd!.show(onUserEarnedReward: (ad, reward) => onUserEarnedReward(reward));
     _rewardedInterstitialAd = null;
   }
-  
-  void loadNativeAd(NativeAdListener listener) {
-    _nativeAd = NativeAd(
-      adUnitId: nativeAdUnitId,
-      listener: listener,
-      request: const AdRequest(),
-    )..load();
-  }
-
-  void disposeNativeAd() {
-    _nativeAd?.dispose();
-    _nativeAd = null;
-  }
 }
+
+final adService = AdService();

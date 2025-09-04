@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:rewardly/models/user_tier.dart';
-import 'package:rewardly/widgets/rewardly_app_bar.dart';
+import 'package:rewardly/providers/user_data_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,17 +13,41 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final User? currentUser = FirebaseAuth.instance.currentUser;
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      context.go('/login');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: const RewardlyAppBar(),
-      body: currentUser == null
-          ? _buildLoggedOutView(context, theme)
-          : _buildProfileView(context, theme),
+      appBar: AppBar(
+          title: const Text('My Profile'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _logout,
+              tooltip: 'Log Out',
+            ),
+          ],
+      ),
+      body: Consumer<UserDataProvider>(
+        builder: (context, userDataProvider, child) {
+          if (userDataProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (userDataProvider.userData == null) {
+            return _buildLoggedOutView(context, theme);
+          }
+
+          return _buildProfileView(context, theme, userDataProvider);
+        },
+      ),
     );
   }
 
@@ -42,8 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 20),
             Text(
               'You are not logged in',
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Text(
@@ -62,60 +85,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileView(BuildContext context, ThemeData theme) {
-    return FutureBuilder<IdTokenResult>(
-      future: currentUser!.getIdTokenResult(),
-      builder: (context, idTokenSnapshot) {
-        if (!idTokenSnapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final bool isAdmin = idTokenSnapshot.data?.claims?['admin'] == true;
+  Widget _buildProfileView(BuildContext context, ThemeData theme, UserDataProvider userDataProvider) {
+    final userData = userDataProvider.userData!;
+    final email = userData['email'] as String? ?? 'No email provided';
+    final points = userData['points'] as int? ?? 0;
+    final tierIndex = userData['tier'] as int? ?? 0;
+    final userTier = UserTier.values.length > tierIndex ? UserTier.values[tierIndex] : UserTier.bronze;
+    final bool isAdmin = userData['isAdmin'] == true;
 
-        return StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser!.uid)
-              .snapshots(),
-          builder: (context, userSnapshot) {
-            if (userSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (!userSnapshot.hasData ||
-                userSnapshot.hasError ||
-                !userSnapshot.data!.exists) {
-              return const Center(child: Text('Could not load user data.'));
-            }
-
-            final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-            final email = userData['email'] as String? ?? 'No email provided';
-            final points = userData['points'] as int? ?? 0;
-            final userTier = UserTier.values[userData['tier'] ?? 0];
-
-            return ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                _buildProfileHeader(theme, email, points, userTier),
-                const SizedBox(height: 30),
-                _buildProfileActions(context, isAdmin),
-              ],
-            );
-          },
-        );
-      },
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        _buildProfileHeader(theme, email, points, userTier),
+        const SizedBox(height: 30),
+        _buildProfileActions(context, isAdmin),
+        const SizedBox(height: 20),
+        const Divider(),
+        const SizedBox(height: 20),
+        Center(
+          child: Text(
+            'App Version 1.0.0', // This should be dynamically fetched in a real app
+            style: theme.textTheme.bodySmall,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildProfileHeader(
-      ThemeData theme, String email, int points, UserTier userTier) {
+  Widget _buildProfileHeader(ThemeData theme, String email, int points, UserTier userTier) {
     return Column(
       children: [
         CircleAvatar(
           radius: 60,
-          backgroundColor: theme.primaryColor.withAlpha(25),
+          backgroundColor: userTier.color.withAlpha(25),
           child: Icon(
-            Icons.person_outline,
+            userTier.icon,
             size: 60,
-            color: theme.primaryColor,
+            color: userTier.color,
           ),
         ),
         const SizedBox(height: 16),
@@ -142,15 +148,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(width: 10),
             Chip(
-              avatar:
-                  Icon(Icons.military_tech, color: _getTierColor(userTier, theme)),
+              avatar: Icon(userTier.icon, color: userTier.color),
               label: Text(
-                _getTierName(userTier),
+                userTier.name,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              backgroundColor: _getTierColor(userTier, theme).withAlpha(25),
+              backgroundColor: userTier.color.withAlpha(25),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
           ],
@@ -159,85 +164,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  String _getTierName(UserTier tier) {
-    switch (tier) {
-      case UserTier.gold:
-        return 'Gold';
-      case UserTier.silver:
-        return 'Silver';
-      case UserTier.bronze:
-        return 'Bronze';
-    }
-  }
-
-  Color _getTierColor(UserTier tier, ThemeData theme) {
-    switch (tier) {
-      case UserTier.gold:
-        return Colors.amber;
-      case UserTier.silver:
-        return Colors.grey[400]!;
-      case UserTier.bronze:
-        return theme.colorScheme.secondary;
-    }
-  }
-
   Widget _buildProfileActions(BuildContext context, bool isAdmin) {
     return Column(
       children: [
-        _buildActionButton(
-          context,
-          icon: Icons.account_balance_wallet_outlined,
-          label: 'Request Withdrawal',
-          onTap: () => context.go('/withdrawal'),
-        ),
+        _buildActionButton(context, icon: Icons.leaderboard, label: 'Achievements', onTap: () => context.go('/achievements')),
         const SizedBox(height: 16),
-        _buildActionButton(
-          context,
-          icon: Icons.history_outlined,
-          label: 'Withdrawal History',
-          onTap: () => context.go('/withdrawal_history'),
-        ),
+        _buildActionButton(context, icon: Icons.group_add_outlined, label: 'Refer a Friend', onTap: () => context.go('/referral')),
         const SizedBox(height: 16),
-        _buildActionButton(
-          context,
-          icon: Icons.group_add_outlined,
-          label: 'Refer a Friend',
-          onTap: () => context.go('/referral'),
-        ),
+        _buildActionButton(context, icon: Icons.description_outlined, label: 'Terms and Conditions', onTap: () => context.go('/terms')),
         const SizedBox(height: 16),
-        _buildActionButton(
-          context,
-          icon: Icons.description_outlined,
-          label: 'Terms and Conditions',
-          onTap: () => context.go('/terms'),
-        ),
+        _buildActionButton(context, icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () => context.go('/privacy-policy')),
         const SizedBox(height: 16),
-        _buildActionButton(
-          context,
-          icon: Icons.privacy_tip_outlined,
-          label: 'Privacy Policy',
-          onTap: () => context.go('/privacy-policy'),
-        ),
+        _buildActionButton(context, icon: Icons.info_outline, label: 'About Rewardly', onTap: () => context.go('/about')),
         if (isAdmin)
           Padding(
             padding: const EdgeInsets.only(top: 16.0),
-            child: _buildActionButton(
-              context,
-              icon: Icons.admin_panel_settings_outlined,
-              label: 'Admin Panel',
-              onTap: () => context.go('/admin'),
-            ),
+            child: _buildActionButton(context, icon: Icons.admin_panel_settings_outlined, label: 'Admin Panel', onTap: () => context.go('/admin')),
           ),
       ],
     );
   }
 
-  Widget _buildActionButton(BuildContext context,
-      {required IconData icon,
-      required String label,
-      required VoidCallback onTap}) {
+  Widget _buildActionButton(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
     final theme = Theme.of(context);
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -247,11 +199,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Icon(icon, size: 28, color: theme.primaryColor),
               const SizedBox(width: 16),
-              Text(label,
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              Text(label, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
+              Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey[400]),
             ],
           ),
         ),

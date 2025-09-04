@@ -1,43 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:rewardly/main.dart';
+import 'package:rewardly/services/remote_config_service.dart';
 
 class RewardlyAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String? title;
-  const RewardlyAppBar({super.key, this.title});
+  final String title;
+  final List<Widget>? actions;
+
+  const RewardlyAppBar({super.key, required this.title, this.actions});
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      automaticallyImplyLeading: false,
-      title: Text(
-        title ?? remoteConfigService.getString('app_bar_title'),
-        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.person_outline),
-          onPressed: () {
-            if (GoRouterState.of(context).uri.toString() != '/profile') {
-              context.go('/profile');
-            }
-          },
-          tooltip: 'Profile',
-        ),
-        IconButton(
-          icon: const Icon(Icons.logout_outlined),
-          onPressed: () async {
-            await FirebaseAuth.instance.signOut();
-            if (context.mounted) {
-              context.go('/login');
-            }
-          },
-          tooltip: 'Logout',
-        ),
-      ],
+      title: Text(remoteConfigService.getString(title)),
+      actions: actions,
     );
   }
 

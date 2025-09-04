@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:rewardly/app_logo.dart';
+import 'package:provider/provider.dart';
+import 'package:rewardly/providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,41 +10,30 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  late StreamSubscription<User?> _authSubscription;
-
   @override
   void initState() {
     super.initState();
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
-      if (mounted) {
-        if (user == null) {
-          context.go('/login');
-        } else {
-          context.go('/');
-        }
-      }
-    });
+    _checkAuth();
   }
 
-  @override
-  void dispose() {
-    _authSubscription.cancel();
-    super.dispose();
+  Future<void> _checkAuth() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await Future.delayed(const Duration(seconds: 2)); // Simulate a delay
+
+    if (!mounted) return;
+
+    if (authProvider.user != null) {
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Colors.white,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AppLogo(),
-            SizedBox(height: 20),
-            CircularProgressIndicator(),
-          ],
-        ),
+        child: CircularProgressIndicator(),
       ),
     );
   }
