@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:rewardly/app_lifecycle_reactor.dart';
 import 'package:rewardly/providers/auth_provider.dart';
@@ -38,6 +39,7 @@ class _MyAppState extends State<MyApp> {
   late final AuthProvider _authProvider;
   late final UserDataProvider _userDataProvider;
   late final ThemeProvider _themeProvider;
+  late final GoRouter _router;
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _MyAppState extends State<MyApp> {
     _authProvider = AuthProvider();
     _userDataProvider = UserDataProvider();
     _themeProvider = ThemeProvider();
+    _router = createRouter(_authProvider);
   }
 
   @override
@@ -64,7 +67,7 @@ class _MyAppState extends State<MyApp> {
             theme: themeProvider.lightTheme,
             darkTheme: themeProvider.darkTheme,
             themeMode: themeProvider.themeMode,
-            routerConfig: router,
+            routerConfig: _router,
           );
         },
       ),

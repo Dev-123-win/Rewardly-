@@ -30,7 +30,7 @@ Rewardly is a mobile application that allows users to earn points by watching ad
 *   **Logic Bug: Redundant and Inconsistent Tier Calculation:** Removed redundant tier calculation logic from the `HomeScreen`.
 *   **UI Bug: Stale Admin Status:** Implemented `WidgetsBindingObserver` to automatically refresh the user's admin status.
 *   **Poor User Experience: SnackBar Spam:** Improved the achievement notification to prevent `SnackBar` spam.
-*   **The Race Condition:** Fixed a race condition in the `SplashScreen`.
+*   **Critical Bug: App Stuck on Loading Screen:** Fixed a critical bug that caused the app to get stuck on the loading screen. The `AuthProvider` was completely rewritten to correctly manage authentication state, including loading and error states, and to notify the router when the user's authentication status changes. This ensures that the app reliably navigates to the correct screen after loading.
 *   **Redundant Tier Logic:** Moved the tier name and color logic to the `UserTier` model.
 *   **Poor UX:** Added a logout button to the `ProfileScreen`.
 *   **Inconsistent Design:** Used a `Consumer` widget to get the user's data from the `UserDataProvider`.
