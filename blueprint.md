@@ -35,3 +35,5 @@ Rewardly is a mobile application that allows users to earn points by watching ad
 *   **Poor UX:** Added a logout button to the `ProfileScreen`.
 *   **Inconsistent Design:** Used a `Consumer` widget to get the user's data from the `UserDataProvider`.
 *   **Improved UI:** Improved the UI of the `ProfileScreen` to make it more visually appealing and user-friendly.
+*   **Feature Removal: Leaderboard:** Removed the leaderboard feature, including the backend Cloud Function, the `LeaderboardScreen`, and all associated UI elements, as requested.
+*   **Improved Code Quality:** Resolved a lint warning in the `UserDataProvider` by making the `_withdrawalHistory` list `final` to improve code robustness.

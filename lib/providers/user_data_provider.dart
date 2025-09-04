@@ -10,7 +10,7 @@ class UserDataProvider with ChangeNotifier {
 
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
-  List<Map<String, dynamic>> _withdrawalHistory = [];
+  final List<Map<String, dynamic>> _withdrawalHistory = [];
   bool _isFetchingHistory = false;
   bool _hasMoreHistory = true;
   DocumentSnapshot? _lastWithdrawalDoc;
