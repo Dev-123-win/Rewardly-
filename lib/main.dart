@@ -78,7 +78,7 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, child) {
         return MaterialApp.router(
           routerConfig: router,
-          title: 'Flutter Rebuilt App',
+          title: 'Rewardly',
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: themeProvider.themeMode,

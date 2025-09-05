@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -20,19 +21,33 @@ class HomeScreen extends StatelessWidget {
             onPressed: () => themeProvider.toggleTheme(),
             tooltip: 'Toggle Theme',
           ),
-          IconButton(
-            icon: const Icon(Icons.login),
-            onPressed: () => context.go('/auth'),
-            tooltip: 'Authentication',
-          ),
-          IconButton(
-            icon: const Icon(Icons.monetization_on),
-            onPressed: () => context.go('/watch-and-earn'),
-            tooltip: 'Watch & Earn',
+          StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox.shrink();
+              }
+              if (snapshot.hasData) {
+                return IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: () async {
+                    await FirebaseAuth.instance.signOut();
+                  },
+                  tooltip: 'Logout',
+                );
+              } else {
+                return IconButton(
+                  icon: const Icon(Icons.login),
+                  onPressed: () => context.go('/auth'),
+                  tooltip: 'Authentication',
+                );
+              }
+            },
           ),
         ],
       ),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
@@ -40,9 +55,43 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Text('This is the rebuilt application.', style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 30),
-            ElevatedButton(onPressed: () => context.go('/auth'), child: const Text('Get Started')),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: () => context.go('/watch-and-earn'), child: const Text('Watch & Earn')),
+            GestureDetector(
+              onTap: () => context.go('/watch-and-earn'),
+              child: Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.monetization_on, size: 40),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Watch & Earn', style: Theme.of(context).textTheme.headlineSmall),
+                          const Text('Watch ads to earn points'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            StreamBuilder<User?>(
+                stream: FirebaseAuth.instance.authStateChanges(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return const SizedBox.shrink();
+                  } else {
+                    return ElevatedButton(
+                        onPressed: () => context.go('/auth'),
+                        child: const Text('Get Started'));
+                  }
+                }),
           ],
         ),
       ),
