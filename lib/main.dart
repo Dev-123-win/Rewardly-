@@ -2,32 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:rewardly_runner/screens/splash_screen.dart';
-import 'firebase_options.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+import 'app/routing/app_router.dart';
+import 'app/theme/theme_provider.dart';
+
+void main() {
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),
       child: const MyApp(),
     ),
   );
-}
-
-class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.dark;
-
-  ThemeMode get themeMode => _themeMode;
-
-  void toggleTheme() {
-    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    notifyListeners();
-  }
 }
 
 class MyApp extends StatelessWidget {
@@ -91,12 +76,12 @@ class MyApp extends StatelessWidget {
 
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
-        return MaterialApp(
-          title: 'Rewardly Runner',
+        return MaterialApp.router(
+          routerConfig: router,
+          title: 'Flutter Rebuilt App',
           theme: lightTheme,
           darkTheme: darkTheme,
-      themeMode: themeProvider.themeMode,
-          home: const SplashScreen(),
+          themeMode: themeProvider.themeMode,
         );
       },
     );
