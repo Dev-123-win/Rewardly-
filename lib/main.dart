@@ -1,35 +1,51 @@
+
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
+import 'package:rewardly/app/app_theme.dart';
+import 'package:rewardly/features/auth/presentation/providers/auth_provider.dart';
 
 import 'app/providers/user_data_provider.dart';
 import 'app/routing/app_router.dart';
-import 'app/theme/theme_provider.dart';
 import 'firebase_options.dart';
+import 'shared/services/remote_config_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    await MobileAds.instance.initialize();
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
-    runApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (context) => ThemeProvider()),
-          ChangeNotifierProvider(create: (context) => UserDataProvider()),
-        ],
-        child: const MyApp(),
-      ),
-    );
-  } catch (e, s) {
-    // If an error occurs during initialization, show a dedicated error screen.
-    runApp(ErrorApp(error: e, stackTrace: s));
-  }
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+
+      await RemoteConfigService.getInstance();
+
+      runApp(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (context) => ThemeProvider()),
+            ChangeNotifierProvider(create: (context) => UserDataProvider()),
+            ChangeNotifierProvider(create: (context) => AuthProvider()),
+          ],
+          child: const MyApp(),
+        ),
+      );
+    } catch (e, s) {
+      FirebaseCrashlytics.instance.recordError(e, s, fatal: true);
+      runApp(ErrorApp(error: e, stackTrace: s));
+    }
+  }, (error, stack) => FirebaseCrashlytics.instance.recordError(error, stack, fatal: true));
 }
 
 class MyApp extends StatelessWidget {
@@ -37,67 +53,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primarySeedColor = Colors.deepPurple;
-
-    final TextTheme appTextTheme = TextTheme(
-      displayLarge: GoogleFonts.oswald(fontSize: 57, fontWeight: FontWeight.bold),
-      titleLarge: GoogleFonts.roboto(fontSize: 22, fontWeight: FontWeight.w500),
-      bodyMedium: GoogleFonts.openSans(fontSize: 14),
-    );
-
-    final ThemeData lightTheme = ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primarySeedColor,
-        brightness: Brightness.light,
-      ),
-      textTheme: appTextTheme,
-      appBarTheme: AppBarTheme(
-        backgroundColor: primarySeedColor,
-        foregroundColor: Colors.white,
-        titleTextStyle: GoogleFonts.oswald(fontSize: 24, fontWeight: FontWeight.bold),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: primarySeedColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          textStyle: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-
-    final ThemeData darkTheme = ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primarySeedColor,
-        brightness: Brightness.dark,
-      ),
-      textTheme: appTextTheme,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.grey[900],
-        foregroundColor: Colors.white,
-        titleTextStyle: GoogleFonts.oswald(fontSize: 24, fontWeight: FontWeight.bold),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.black,
-          backgroundColor: lightTheme.colorScheme.secondaryContainer,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          textStyle: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
-
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp.router(
           routerConfig: router,
           title: 'Rewardly',
-          theme: lightTheme,
-          darkTheme: darkTheme,
+          theme: RewardlyTheme.lightTheme,
+          darkTheme: RewardlyTheme.darkTheme,
           themeMode: themeProvider.themeMode,
           debugShowCheckedModeBanner: false,
         );
@@ -106,7 +68,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// A widget to display fatal errors that occur during app initialization.
 class ErrorApp extends StatelessWidget {
   final Object error;
   final StackTrace stackTrace;
@@ -118,7 +79,6 @@ class ErrorApp extends StatelessWidget {
     return MaterialApp(
       title: 'Error',
       home: Scaffold(
-        backgroundColor: Colors.white,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -130,17 +90,13 @@ class ErrorApp extends StatelessWidget {
                   const SizedBox(height: 20),
                   Text(
                     'Fatal Error',
-                    style: GoogleFonts.oswald(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                    style: Theme.of(context).textTheme.headlineLarge,
                   ),
                   const SizedBox(height: 10),
                   Text(
                     'Something went wrong during app startup. Please report this issue.',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.openSans(fontSize: 16, color: Colors.black54),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 30),
                   Container(
@@ -152,7 +108,7 @@ class ErrorApp extends StatelessWidget {
                     ),
                     child: Text(
                       'Error Details:\n$error\n\nStack Trace:\n$stackTrace',
-                      style: GoogleFonts.robotoMono(fontSize: 11, color: Colors.black87),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
                 ],

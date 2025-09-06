@@ -1,110 +1,52 @@
-# Project Blueprint
 
-## Overview
+# Blueprint: Rewardly App Optimization
 
-This document outlines the architecture, features, and design of the Rewardly application. Rewardly is a mobile application that allows users to earn points by completing tasks, such as watching ads and checking in daily. Users can then redeem their points for rewards.
+This document outlines the plan to refactor the Rewardly application to improve its robustness, efficiency, and scalability, ensuring it operates within the Firebase Spark Plan's free tier limits for up to 5,000 daily active users.
 
-The architecture has been **fully optimized** to be scalable and cost-effective, with a focus on minimizing Firestore usage to support up to 10,000 daily active users within the Firebase free "Spark" plan.
+## 1. Project Overview
+**Purpose:** To create a stable and scalable "watch-to-earn" mobile application that leverages Firebase services efficiently.
 
-## Core Optimization Strategy: Single Document Listener
+### Implemented Features (Summary):
+- **Authentication:** Firebase Auth for user sign-in.
+- **UI:** Flutter-based, with screens for home, watch & earn, profile, and redeeming rewards.
+- **State Management:** `provider` package for managing application state.
+- **Monetization:** `google_mobile_ads` for showing rewarded video ads.
+- **Backend:** Cloud Firestore for storing user data like points.
 
-The foundation of the app's efficiency is a global `UserDataProvider`.
+---
 
-1.  **Single Real-time Listener:** On app start, after a user logs in, the app attaches **one single, persistent real-time listener** (`.snapshots()`) to their document in the `users/{userId}` collection.
-2.  **In-Memory Caching:** This user data is cached in the `UserDataProvider`.
-3.  **Zero-Read Access:** All parts of the app (Home screen, Check-in, Watch & Earn, etc.) read user data (points, streak) directly from this in-memory cache, **not** from Firestore. This reduces dozens of potential reads per session down to just **one**.
-4.  **Client-Side Logic:** All business logic (calculating streaks, ad cooldowns) is performed on the client, with actions validated on the backend by Firestore Security Rules.
+## 2. Current Change: Architecture & Efficiency Refactor
 
-## Features
+This section details the plan to fix critical bugs and design flaws.
 
-### Implemented
+### **Plan & Steps:**
 
-*   **Authentication:** Users can sign up and log in.
-*   **Optimized Home Screen:** Displays the user's points and streak from the global `UserDataProvider` with zero reads.
-*   **Optimized Daily Check-in:**
-    *   Reads streak and last check-in data from the in-memory cache.
-    *   Performs a **single batched write** to update the user's profile and create a check-in record.
-    *   Efficiently queries only the visible month's check-in markers.
-*   **Optimized Watch & Earn:**
-    *   Manages ad cooldowns and daily limits entirely on the client-side, based on data from the global provider.
-    *   Performs a **single atomic write** to grant points and update ad-watching timestamps.
-*   **Theme Toggle:** Users can switch between light and dark mode.
+#### **Step 1: Integrate Firebase Remote Config**
+- **Goal:** Decouple business logic from the application code to allow for dynamic updates without releasing a new app version.
+- **Action:**
+    1. Add the `firebase_remote_config` package to `pubspec.yaml`.
+    2. Create a `RemoteConfigService` to handle fetching and activating remote values.
+    3. The service will fetch `adReward`, `adsPerDayLimit`, and `adCooldown`.
+    4. Provide sensible default values within the app in case the fetch from Firebase fails.
 
-### Current Plan
+#### **Step 2: Optimize Firestore Write Operations**
+- **Goal:** Drastically reduce the number of Firestore writes to stay within the Spark Plan's free limit (20,000 writes/day).
+- **Action:**
+    1. **Eliminate Per-Ad Writes:** Stop writing to Firestore immediately after a user watches an ad.
+    2. **Local Accumulation:** Create local state variables in the `WatchAndEarnScreen` to track points and ads watched *during the current session*.
+    3. **UI Responsiveness:** Use the `UserDataProvider` to update the user's points in the local app state immediately, so the UI feels responsive.
+    4. **Batch Write on Dispose:** Implement a single batch write in the `dispose` method of the `WatchAndEarnScreen`. This write will commit the total accumulated points and ad count for the session to Firestore when the user navigates away from the screen.
 
-All core optimizations for handling 10,000 DAU on the free tier are **complete**. The app is now ready for deployment.
+#### **Step 3: Improve Ad Loading and Error Handling**
+- **Goal:** Make the ad loading process more robust and prevent the app from getting into a broken state.
+- **Action:**
+    1. **Remove Infinite Loop:** Replace the `while` loop for ad loading with a strategy that uses a limited number of retries (e.g., 3 attempts) with an exponential backoff delay.
+    2. **Propagate Errors:** Modify the `AdService` to stop silently swallowing errors. Errors will be propagated to the UI layer.
+    3. **User Feedback:** The `WatchAndEarnScreen` will display a clear message to the user (e.g., "Failed to load ad. Please try again later.") if an ad fails to load after all retry attempts, preventing user confusion.
 
-## Design
+#### **Step 4: Prevent Unnecessary Background Processing**
+- **Goal:** Conserve battery and CPU by ensuring UI rebuilds only happen when the screen is active.
+- **Action:**
+    1. **Use `WidgetsBindingObserver`:** Implement this observer in the `WatchAndEarnScreen`.
+    2. **Lifecycle-Aware Timer:** Pause the 30-second cooldown timer when the app is paused or in the background, and resume it when the app is brought back to the foreground. This stops `setState` from being called unnecessarily.
 
-*   **UI/UX:** The application uses a modern and clean design, with a focus on user experience. The UI is animated to make it more engaging.
-*   **Theme:** The application supports both light and dark mode.
-*   **Routing:** The application uses the `go_router` package for navigation.
-
-## Architecture
-
-*   **State Management:** The application uses the `provider` package for state management, centered around the global `UserDataProvider`.
-*   **Backend:** The application uses Firebase for authentication and as a backend.
-
-### Firestore Data Modeling
-
-*   **`users/{userId}` Collection:** The single source of truth for all frequently accessed data.
-    *   `points`: (number)
-    *   `streak`: (number)
-    *   `lastCheckIn`: (timestamp)
-    *   `tier`: (string)
-    *   `referralsCount`: (number)
-    *   `lastAdWatchedTimestamp`: (timestamp)
-    *   `adsWatchedToday`: (number)
-
-*   **`daily_check_ins/{checkInId}` Collection:** Stores individual check-in records for the calendar view.
-
-## Security
-
-### Firestore Security Rules
-
-Since most logic is client-side, the Firestore rules are the ultimate source of truth and security.
-
-*   **Own Data Only:** Users can only read and write their own documents.
-*   **Transactional Validation:** All write operations are heavily scrutinized to prevent cheating.
-    *   **Check-in:** Rules validate that a `streak` is only incremented by 1 and that `points` are increased by a valid, calculated amount.
-    *   **Watch & Earn:** Rules enforce the 30-second cooldown between ads and ensure points are only incremented by the correct reward amount.
-    *   **Timestamps:** All time-based updates (`lastCheckIn`, `lastAdWatchedTimestamp`) are forced to use the secure `request.time` server timestamp.
-
-## Deployment
-
-### Android App Signing
-
-To release the Android app, it must be digitally signed with a key. This ensures that you are the authentic developer of the app and that your app hasn't been tampered with.
-
-#### Generating a Keystore
-
-A private signing key was generated using the `keytool` command:
-
-```bash
-keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
-
-This created a `upload-keystore.jks` file in the `android/app` directory.
-
-#### Configuring Gradle for Release Builds
-
-To automate the signing process, a `key.properties` file was created in the `android` directory (and added to `.gitignore` to keep it out of version control):
-
-```
-storePassword=<your_store_password>
-keyPassword=<your_key_password>
-keyAlias=upload
-storeFile=app/upload-keystore.jks
-```
-
-The `android/app/build.gradle.kts` file was configured to read these properties and use them to sign the release build.
-
-#### Building the Release APK
-
-With the signing configuration in place, the release APK was built using the following command:
-
-```bash
-flutter build apk --release
-```
-
-This generated a signed APK at `build/app/outputs/flutter-apk/app-release.apk`.

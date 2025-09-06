@@ -5,7 +5,7 @@ import 'package:rewardly/features/home/presentation/models/screen_model.dart';
 import 'package:rewardly/features/home/presentation/screens/home_screen.dart';
 import 'package:rewardly/features/profile/presentation/screens/profile_screen.dart';
 import 'package:rewardly/features/redeem/presentation/screens/redeem_screen.dart';
-import 'package:rewardly/features/watch_and_earn/presentation/screens/watch_and_earn_screen.dart';
+import 'package:rewardly/features/home/presentation/screens/watch_and_earn_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

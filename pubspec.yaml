@@ -27,6 +27,9 @@ dependencies:
   intl: ^0.20.2
   flutter_animate: ^4.5.2
   table_calendar: ^3.2.0
+  firebase_remote_config: ^4.4.7
+  firebase_crashlytics: ^3.5.7
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:

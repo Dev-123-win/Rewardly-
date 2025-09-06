@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
   User? _user;
   bool _isLoading = false;
   String? _errorMessage;
@@ -19,58 +18,51 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
-  Future<void> signInWithEmailAndPassword(String email, String password) async {
+  Future<void> _executeAuthAction(Future<void> Function() action) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      await action();
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          _errorMessage = 'No user found for that email.';
+          break;
+        case 'wrong-password':
+          _errorMessage = 'Wrong password provided for that user.';
+          break;
+        case 'email-already-in-use':
+          _errorMessage = 'The account already exists for that email.';
+          break;
+        case 'weak-password':
+          _errorMessage = 'The password provided is too weak.';
+          break;
+        default:
+          _errorMessage = e.message;
+      }
     } catch (e) {
-      _errorMessage = e.toString();
-      debugPrint('Error signing in: $e');
-      rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      _errorMessage = 'An unknown error occurred.';
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  Future<void> signUpWithEmailAndPassword(String email, String password) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  Future<void> signIn(String email, String password) async {
+    await _executeAuthAction(() => _auth.signInWithEmailAndPassword(email: email, password: password));
+  }
 
-    try {
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
-    } catch (e) {
-      _errorMessage = e.toString();
-      debugPrint('Error signing up: $e');
-      rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+  Future<void> signUp(String email, String password) async {
+    await _executeAuthAction(() => _auth.createUserWithEmailAndPassword(email: email, password: password));
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } catch (e) {
-      _errorMessage = e.toString();
-      debugPrint('Error sending password reset email: $e');
-      rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    await _executeAuthAction(() => _auth.sendPasswordResetEmail(email: email));
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _executeAuthAction(() => _auth.signOut());
   }
 }
