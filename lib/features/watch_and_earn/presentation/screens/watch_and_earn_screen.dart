@@ -7,6 +7,7 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../app/providers/user_data_provider.dart';
+import '../../../../shared/services/ad_service.dart';
 
 class WatchAndEarnScreen extends StatefulWidget {
   const WatchAndEarnScreen({super.key});
@@ -16,14 +17,21 @@ class WatchAndEarnScreen extends StatefulWidget {
 }
 
 class _WatchAndEarnScreenState extends State<WatchAndEarnScreen> {
-  static const int AD_REWARD = 15;
-  static const int ADS_PER_DAY_LIMIT = 10;
-  static const Duration AD_COOLDOWN = Duration(seconds: 30);
+  static const int adReward = 15;
+  static const int adsPerDayLimit = 10;
+  static const Duration adCooldown = Duration(seconds: 30);
 
-  bool _isWatchingAd = false;
+  final AdService _adService = AdService();
+
   bool _showSuccessAnimation = false;
   Timer? _cooldownTimer;
   Duration _remainingCooldown = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _adService.loadRewardedAd();
+  }
 
   @override
   void dispose() {
@@ -33,7 +41,7 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen> {
 
   void _startCooldown(DateTime lastAdTime) {
     _cooldownTimer?.cancel();
-    final nextAdTime = lastAdTime.add(AD_COOLDOWN);
+    final nextAdTime = lastAdTime.add(adCooldown);
     final now = DateTime.now();
 
     if (now.isBefore(nextAdTime)) {
@@ -51,30 +59,17 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen> {
     }
   }
 
-  Future<void> _simulateAdWatch(UserModel user) async {
-    setState(() {
-      _isWatchingAd = true;
-    });
-
-    // Simulate watching an ad for a few seconds
-    await Future.delayed(const Duration(seconds: 3));
-
-    await _claimAdReward(user);
-
-    if (mounted) {
-      setState(() {
-        _isWatchingAd = false;
-        _showSuccessAnimation = true;
-      });
-      // Hide success animation after a bit
-      Timer(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _showSuccessAnimation = false;
-          });
-        }
-      });
-    }
+  void _showAdAndClaimReward(UserModel user) {
+    _adService.showRewardedAd(
+      onAdRewarded: () {
+        _claimAdReward(user);
+      },
+      onAdFailed: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load ad. Please try again.')),
+        );
+      },
+    );
   }
 
   Future<void> _claimAdReward(UserModel user) async {
@@ -83,15 +78,29 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen> {
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
 
     batch.update(userRef, {
-      'points': FieldValue.increment(AD_REWARD),
+      'points': FieldValue.increment(adReward),
       'lastAdWatchedTimestamp': Timestamp.fromDate(now),
       'adsWatchedToday': FieldValue.increment(1),
     });
 
-    await batch.commit();
+    try {
+      await batch.commit();
 
-    if (mounted) {
-       _startCooldown(now);
+      if (mounted) {
+        _startCooldown(now);
+        setState(() {
+          _showSuccessAnimation = true;
+        });
+        Timer(const Duration(seconds: 2), () {
+          if (mounted) {
+            setState(() {
+              _showSuccessAnimation = false;
+            });
+          }
+        });
+      }
+    } catch (e) {
+      // Handle potential commit errors
     }
   }
 
@@ -111,7 +120,7 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          bool isAdLimitReached = user.adsWatchedToday >= ADS_PER_DAY_LIMIT;
+          bool isAdLimitReached = user.adsWatchedToday >= adsPerDayLimit;
           bool isCooldownActive = _remainingCooldown.inSeconds > 0;
 
           return Stack(
@@ -148,16 +157,16 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Ads Watched Today: ${user.adsWatchedToday} / $ADS_PER_DAY_LIMIT',
+                      'Ads Watched Today: ${user.adsWatchedToday} / $adsPerDayLimit',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white70),
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton(
-                      onPressed: (_isWatchingAd || isAdLimitReached || isCooldownActive)
+                      onPressed: (isAdLimitReached || isCooldownActive || !_adService.isAdReady)
                           ? null
                           : () {
                               HapticFeedback.lightImpact();
-                              _simulateAdWatch(user);
+                              _showAdAndClaimReward(user);
                             },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
@@ -178,13 +187,13 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen> {
   }
 
   Widget _buildButtonChild(bool isAdLimitReached, bool isCooldownActive) {
-    if (_isWatchingAd) {
+    if (!_adService.isAdReady) {
        return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Lottie.asset('assets/animations/loading.json', height: 24),
           const SizedBox(width: 8),
-          const Text('Watching Ad...'),
+          const Text('Loading Ad...'),
         ],
       );
     }

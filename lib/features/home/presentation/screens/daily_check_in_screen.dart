@@ -79,10 +79,15 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
     }
 
     int pointsEarned = 10;
-    if (newStreak % 30 == 0)      pointsEarned += 250;
-    else if (newStreak % 14 == 0) pointsEarned += 100;
-    else if (newStreak % 7 == 0)  pointsEarned += 50;
-    else if (newStreak % 3 == 0)  pointsEarned += 20;
+    if (newStreak % 30 == 0) {
+      pointsEarned += 250;
+    } else if (newStreak % 14 == 0) {
+      pointsEarned += 100;
+    } else if (newStreak % 7 == 0)  {
+      pointsEarned += 50;
+    } else if (newStreak % 3 == 0)  {
+      pointsEarned += 20;
+    }
 
     final batch = FirebaseFirestore.instance.batch();
 
@@ -192,7 +197,7 @@ class _DailyCheckInScreenState extends State<DailyCheckInScreen> {
                     calendarBuilders: CalendarBuilders(
                       markerBuilder: (context, date, events) {
                         if (events.isNotEmpty) {
-                          return Positioned(
+                          return const Positioned(
                             right: 1,
                             bottom: 1,
                             child: Icon(

@@ -16,11 +16,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _bottomNavIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ProfileScreen(),
-    RedeemScreen(),
-    WatchAndEarnScreen(),
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const ProfileScreen(),
+    const RedeemScreen(),
+    const WatchAndEarnScreen(),
   ];
 
   final List<IconData> _iconList = [

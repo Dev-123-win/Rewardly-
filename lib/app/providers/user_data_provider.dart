@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Represents the user's data model.
@@ -73,7 +74,7 @@ class UserDataProvider with ChangeNotifier {
       }
       notifyListeners();
     }, onError: (error) {
-      print("Error listening to user data: $error");
+      debugPrint("Error listening to user data: $error");
       _userModel = null;
       notifyListeners();
     });
