@@ -19,6 +19,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sign Up'),
@@ -45,21 +47,33 @@ class _SignupScreenState extends State<SignupScreen> {
               obscureText: true,
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                if (_passwordController.text == _confirmPasswordController.text) {
-                  context.read<AuthProvider>().signUpWithEmailAndPassword(
-                        _emailController.text,
-                        _passwordController.text,
-                      );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Passwords do not match')),
-                  );
-                }
-              },
-              child: const Text('Sign Up'),
-            ),
+            if (authProvider.isLoading)
+              const CircularProgressIndicator()
+            else
+              ElevatedButton(
+                onPressed: () {
+                  if (_passwordController.text ==
+                      _confirmPasswordController.text) {
+                    context.read<AuthProvider>().signUpWithEmailAndPassword(
+                          _emailController.text,
+                          _passwordController.text,
+                        );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Passwords do not match')),
+                    );
+                  }
+                },
+                child: const Text('Sign Up'),
+              ),
+            if (authProvider.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  authProvider.errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => context.go('/auth'),

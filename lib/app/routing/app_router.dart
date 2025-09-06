@@ -13,9 +13,7 @@ import '../../features/redeem/presentation/screens/redeem_history_screen.dart';
 final GoRouter router = GoRouter(
   redirect: (BuildContext context, GoRouterState state) {
     final bool loggedIn = FirebaseAuth.instance.currentUser != null;
-    final bool loggingIn = state.matchedLocation == '/auth' ||
-        state.matchedLocation == '/auth/signup' ||
-        state.matchedLocation == '/auth/password-reset';
+    final bool loggingIn = state.matchedLocation.startsWith('/auth');
 
     if (!loggedIn) {
       return loggingIn ? null : '/auth';
@@ -65,7 +63,7 @@ final GoRouter router = GoRouter(
         ),
         GoRoute(
           path: 'password-reset',
-          builder: (BuildContext context, GoRouterState state) {
+          builder: (BuildContext acontext, GoRouterState state) {
             return const PasswordResetScreen();
           },
         ),

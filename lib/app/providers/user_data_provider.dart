@@ -65,12 +65,19 @@ class UserDataProvider with ChangeNotifier {
         .collection('users')
         .doc(uid)
         .snapshots()
-        .listen((doc) {
+        .listen((doc) async {
       if (doc.exists) {
         _userModel = UserModel.fromDoc(doc);
       } else {
-        // Handle case where user doc might not exist yet
-        _userModel = UserModel(uid: uid); 
+        // Create a new user document if it doesn't exist
+        _userModel = UserModel(uid: uid);
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'points': 0,
+          'streak': 0,
+          'tier': 'Bronze',
+          'referralsCount': 0,
+          'adsWatchedToday': 0,
+        });
       }
       notifyListeners();
     }, onError: (error) {

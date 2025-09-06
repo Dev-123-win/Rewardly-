@@ -1,1 +1,170 @@
-import 'package:cloud_firestore/cloud_firestore.dart';\nimport 'package:firebase_auth/firebase_auth.dart';\nimport 'package:flutter/material.dart';\nimport 'package:fluttertoast/fluttertoast.dart';\n\nclass RedeemScreen extends StatelessWidget {\n  const RedeemScreen({super.key});\n\n  @override\n  Widget build(BuildContext context) {\n    final user = FirebaseAuth.instance.currentUser;\n\n    return Scaffold(\n      appBar: AppBar(\n        title: const Text('Redeem'),\n      ),\n      body: user == null\n          ? const Center(child: Text('Please log in to redeem points.'))\n          : Column(\n              children: [\n                _buildUserPoints(user.uid),\n                Expanded(child: _buildRewardsGrid(context, user.uid)),\n              ],\n            ),\n    );\n  }\n\n  Widget _buildUserPoints(String uid) {\n    return StreamBuilder<DocumentSnapshot>(\n      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),\n      builder: (context, snapshot) {\n        if (!snapshot.hasData) {\n          return const Padding(\n            padding: EdgeInsets.all(16.0),\n            child: Text('Your Points: ...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),\n          );\n        }\n        final userPoints = (snapshot.data!.data() as Map<String, dynamic>)['points'] ?? 0;\n        return Padding(\n          padding: const EdgeInsets.all(16.0),\n          child: Text('Your Points: $userPoints', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),\n        );\n      },\n    );\n  }\n\n  Widget _buildRewardsGrid(BuildContext context, String uid) {\n    final List<Map<String, dynamic>> rewards = [\n      {'name': 'Gift Card \$5', 'points': 500, 'image': 'https://via.placeholder.com/150'},\n      {'name': 'Gift Card \$10', 'points': 1000, 'image': 'https://via.placeholder.com/150'},\n      {'name': 'Gift Card \$25', 'points': 2500, 'image': 'https://via.placeholder.com/150'},\n      {'name': 'Headphones', 'points': 5000, 'image': 'https://via.placeholder.com/150'},\n      {'name': 'Smartwatch', 'points': 10000, 'image': 'https://via.placeholder.com/150'},\n      {'name': 'Bluetooth Speaker', 'points': 7500, 'image': 'https://via.placeholder.com/150'},\n    ];\n\n    return GridView.builder(\n      padding: const EdgeInsets.all(10),\n      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(\n        crossAxisCount: 2,\n        crossAxisSpacing: 10,\n        mainAxisSpacing: 10,\n        childAspectRatio: 0.75,\n      ),\n      itemCount: rewards.length,\n      itemBuilder: (context, index) {\n        final reward = rewards[index];\n        return Card(\n          elevation: 4,\n          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),\n          child: Column(\n            crossAxisAlignment: CrossAxisAlignment.stretch,\n            children: [\n              Expanded(\n                child: ClipRRect(\n                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),\n                  child: Image.network(reward['image'], fit: BoxFit.cover),\n                ),\n              ),\n              Padding(\n                padding: const EdgeInsets.all(8.0),\n                child: Column(\n                  crossAxisAlignment: CrossAxisAlignment.start,\n                  children: [\n                    Text(reward['name'], style: const TextStyle(fontWeight: FontWeight.bold)),\n                    const SizedBox(height: 4),\n                    Text('${reward['points']} points', style: TextStyle(color: Theme.of(context).primaryColor)),\n                  ],\n                ),\n              ),\n              Padding(\n                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),\n                child: ElevatedButton(\n                  onPressed: () => _showRedeemConfirmation(context, uid, reward),\n                  child: const Text('Redeem'),\n                ),\n              ),\n            ],\n          ),\n        );\n      },\n    );\n  }\n\n  void _showRedeemConfirmation(BuildContext context, String uid, Map<String, dynamic> reward) {\n    showDialog(\n      context: context,\n      builder: (BuildContext context) {\n        return AlertDialog(\n          title: const Text('Confirm Redemption'),\n          content: Text('Are you sure you want to redeem ${reward['name']} for ${reward['points']} points?'),\n          actions: <Widget>[\n            TextButton(\n              child: const Text('Cancel'),\n              onPressed: () {\n                Navigator.of(context).pop();\n              },\n            ),\n            TextButton(\n              child: const Text('Redeem'),\n              onPressed: () {\n                _redeemPoints(context, uid, reward);\n                Navigator.of(context).pop();\n              },\n            ),\n          ],\n        );\n      },\n    );\n  }\n\n  void _redeemPoints(BuildContext context, String uid, Map<String, dynamic> reward) async {\n    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);\n    final redeemHistoryRef = FirebaseFirestore.instance.collection('redeem_history');\n\n    await FirebaseFirestore.instance..runTransaction((transaction) async {\n      final snapshot = await transaction.get(userRef);\n      final userPoints = (snapshot.data() as Map<String, dynamic>)['points'] ?? 0;\n\n      if (userPoints >= reward['points']) {\n        final newPoints = userPoints - reward['points'];\n        transaction.update(userRef, {'points': newPoints});\n        transaction.set(redeemHistoryRef.doc(), {\n          'userId': uid,\n          'rewardName': reward['name'],\n          'points': reward['points'],\n          'timestamp': FieldValue.serverTimestamp(),\n        });\n\n        Fluttertoast.showToast(\n            msg: \"Reward redeemed successfully!\",\n            toastLength: Toast.LENGTH_SHORT,\n            gravity: ToastGravity.BOTTOM,\n            timeInSecForIosWeb: 1,\n            backgroundColor: Colors.green,\n            textColor: Colors.white,\n            fontSize: 16.0);\n      } else {\n        Fluttertoast.showToast(\n            msg: \"You don't have enough points.\",\n            toastLength: Toast.LENGTH_SHORT,\n            gravity: ToastGravity.BOTTOM,\n            timeInSecForIosWeb: 1,\n            backgroundColor: Colors.red,\n            textColor: Colors.white,\n            fontSize: 16.0);\n      }\n    });\n  }\n}\n
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+
+class RedeemScreen extends StatelessWidget {
+  const RedeemScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Redeem'),
+      ),
+      body: user == null
+          ? const Center(child: Text('Please log in to redeem points.'))
+          : Column(
+              children: [
+                _buildUserPoints(user.uid),
+                Expanded(child: _buildRewardsGrid(context, user.uid)),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildUserPoints(String uid) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text('Your Points: ...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          );
+        }
+        final userPoints = (snapshot.data!.data() as Map<String, dynamic>)['points'] ?? 0;
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text('Your Points: $userPoints', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        );
+      },
+    );
+  }
+
+  Widget _buildRewardsGrid(BuildContext context, String uid) {
+    final List<Map<String, dynamic>> rewards = [
+      {'name': 'Gift Card \$5', 'points': 500, 'image': 'https://via.placeholder.com/150'},
+      {'name': 'Gift Card \$10', 'points': 1000, 'image': 'https://via.placeholder.com/150'},
+      {'name': 'Gift Card \$25', 'points': 2500, 'image': 'https://via.placeholder.com/150'},
+      {'name': 'Headphones', 'points': 5000, 'image': 'https://via.placeholder.com/150'},
+      {'name': 'Smartwatch', 'points': 10000, 'image': 'https://via.placeholder.com/150'},
+      {'name': 'Bluetooth Speaker', 'points': 7500, 'image': 'https://via.placeholder.com/150'},
+    ];
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(10),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: rewards.length,
+      itemBuilder: (context, index) {
+        final reward = rewards[index];
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                  child: Image.network(reward['image'], fit: BoxFit.cover),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(reward['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('${reward['points']} points', style: TextStyle(color: Theme.of(context).primaryColor)),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: ElevatedButton(
+                  onPressed: () => _showRedeemConfirmation(context, uid, reward),
+                  child: const Text('Redeem'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRedeemConfirmation(BuildContext context, String uid, Map<String, dynamic> reward) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Redemption'),
+          content: Text('Are you sure you want to redeem ${reward['name']} for ${reward['points']} points?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Redeem'),
+              onPressed: () {
+                _redeemPoints(context, uid, reward);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _redeemPoints(BuildContext context, String uid, Map<String, dynamic> reward) async {
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    final redeemHistoryRef = FirebaseFirestore.instance.collection('redeem_history');
+
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userRef);
+      final userPoints = (snapshot.data() as Map<String, dynamic>)['points'] ?? 0;
+
+      if (userPoints >= reward['points']) {
+        final newPoints = userPoints - reward['points'];
+        transaction.update(userRef, {'points': newPoints});
+        transaction.set(redeemHistoryRef.doc(), {
+          'userId': uid,
+          'rewardName': reward['name'],
+          'points': reward['points'],
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        Fluttertoast.showToast(
+            msg: 'Reward redeemed successfully!',
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            timeInSecForIosWeb: 1,
+            backgroundColor: Colors.green,
+            textColor: Colors.white,
+            fontSize: 16.0);
+      } else {
+        Fluttertoast.showToast(
+            msg: 'You don\'t have enough points.',
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            timeInSecForIosWeb: 1,
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+            fontSize: 16.0);
+      }
+    });
+  }
+}

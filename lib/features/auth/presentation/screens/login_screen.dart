@@ -18,6 +18,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -36,15 +38,26 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText: true,
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                context.read<AuthProvider>().signInWithEmailAndPassword(
-                      _emailController.text,
-                      _passwordController.text,
-                    );
-              },
-              child: const Text('Login'),
-            ),
+            if (authProvider.isLoading)
+              const CircularProgressIndicator()
+            else
+              ElevatedButton(
+                onPressed: () {
+                  context.read<AuthProvider>().signInWithEmailAndPassword(
+                        _emailController.text,
+                        _passwordController.text,
+                      );
+                },
+                child: const Text('Login'),
+              ),
+            if (authProvider.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  authProvider.errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => context.go('/auth/signup'),
@@ -53,12 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed: () => context.go('/auth/password-reset'),
               child: const Text('Forgot Password?'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => context.read<AuthProvider>().signInWithGoogle(),
-              icon: const Icon(Icons.g_mobiledata),
-              label: const Text('Sign in with Google'),
             ),
           ],
         ),
