@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rewardly/features/watch_and_earn/presentation/screens/watch_and_earn_screen.dart';
 
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/password_reset_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
+import '../../features/home/presentation/screens/daily_check_in_screen.dart';
 import '../../features/home/presentation/screens/main_screen.dart';
 import '../../features/redeem/presentation/screens/redeem_history_screen.dart';
 
@@ -38,6 +40,15 @@ final GoRouter router = GoRouter(
             return const RedeemHistoryScreen();
           },
         ),
+        GoRoute(
+          path: 'daily-check-in',
+          builder: (BuildContext context, GoRouterState state) {
+            return const DailyCheckInScreen();
+          },
+        ),
+        GoRoute(
+            path: 'watch-and-earn',
+            builder: (context, state) => const WatchAndEarnScreen())
       ],
     ),
     GoRoute(
