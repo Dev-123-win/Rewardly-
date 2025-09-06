@@ -11,20 +11,25 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  await MobileAds.instance.initialize();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await MobileAds.instance.initialize();
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => ThemeProvider()),
-        ChangeNotifierProvider(create: (context) => UserDataProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (context) => ThemeProvider()),
+          ChangeNotifierProvider(create: (context) => UserDataProvider()),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  } catch (e, s) {
+    // If an error occurs during initialization, show a dedicated error screen.
+    runApp(ErrorApp(error: e, stackTrace: s));
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -97,6 +102,66 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
         );
       },
+    );
+  }
+}
+
+/// A widget to display fatal errors that occur during app initialization.
+class ErrorApp extends StatelessWidget {
+  final Object error;
+  final StackTrace stackTrace;
+
+  const ErrorApp({super.key, required this.error, required this.stackTrace});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Error',
+      home: Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 80),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Fatal Error',
+                    style: GoogleFonts.oswald(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Something went wrong during app startup. Please report this issue.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.openSans(fontSize: 16, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 30),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Text(
+                      'Error Details:\n$error\n\nStack Trace:\n$stackTrace',
+                      style: GoogleFonts.robotoMono(fontSize: 11, color: Colors.black87),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
