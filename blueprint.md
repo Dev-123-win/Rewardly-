@@ -32,7 +32,7 @@ The foundation of the app's efficiency is a global `UserDataProvider`.
 
 ### Current Plan
 
-All core optimizations for handling 10,000 DAU on the free tier are **complete**. The focus is now on maintaining this architecture for any new features.
+All core optimizations for handling 10,000 DAU on the free tier are **complete**. The app is now ready for deployment.
 
 ## Design
 
@@ -69,3 +69,42 @@ Since most logic is client-side, the Firestore rules are the ultimate source of 
     *   **Check-in:** Rules validate that a `streak` is only incremented by 1 and that `points` are increased by a valid, calculated amount.
     *   **Watch & Earn:** Rules enforce the 30-second cooldown between ads and ensure points are only incremented by the correct reward amount.
     *   **Timestamps:** All time-based updates (`lastCheckIn`, `lastAdWatchedTimestamp`) are forced to use the secure `request.time` server timestamp.
+
+## Deployment
+
+### Android App Signing
+
+To release the Android app, it must be digitally signed with a key. This ensures that you are the authentic developer of the app and that your app hasn't been tampered with.
+
+#### Generating a Keystore
+
+A private signing key was generated using the `keytool` command:
+
+```bash
+keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+This created a `upload-keystore.jks` file in the `android/app` directory.
+
+#### Configuring Gradle for Release Builds
+
+To automate the signing process, a `key.properties` file was created in the `android` directory (and added to `.gitignore` to keep it out of version control):
+
+```
+storePassword=<your_store_password>
+keyPassword=<your_key_password>
+keyAlias=upload
+storeFile=app/upload-keystore.jks
+```
+
+The `android/app/build.gradle.kts` file was configured to read these properties and use them to sign the release build.
+
+#### Building the Release APK
+
+With the signing configuration in place, the release APK was built using the following command:
+
+```bash
+flutter build apk --release
+```
+
+This generated a signed APK at `build/app/outputs/flutter-apk/app-release.apk`.
