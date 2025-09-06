@@ -55,7 +55,6 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen>
     _initialize();
   }
 
-  /// Initializes services, fetches config, and loads the first ad.
   Future<void> _initialize() async {
     _remoteConfigService = await RemoteConfigService.getInstance();
     _localAdService = await LocalAdService.getInstance();
@@ -115,7 +114,10 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen>
 
   Future<void> _loadAdWithRetries({int maxRetries = 3}) async {
     if (_isAdLoading) return;
-    setState(() => _isAdLoading = true);
+    setState(() {
+      _isAdLoading = true;
+      _adFailedToLoad = false;
+    });
 
     for (int i = 0; i < maxRetries; i++) {
       try {
@@ -130,7 +132,10 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen>
     }
 
     if (mounted) {
-      setState(() => _isAdLoading = false);
+      setState(() {
+        _isAdLoading = false;
+        _adFailedToLoad = true;
+      });
     }
   }
 
@@ -196,7 +201,6 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen>
       appBar: AppBar(
         title: const Text('Watch & Earn'),
         actions: [
-          // Temporary button to toggle theme
           IconButton(
             icon: const Icon(Icons.brightness_6),
             onPressed: () {
@@ -221,7 +225,7 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen>
         gradient: LinearGradient(
           colors: [
             theme.colorScheme.surface,
-            theme.colorScheme.surface.withOpacity(0.8),
+            theme.colorScheme.surface.withAlpha(204),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -314,8 +318,15 @@ class _WatchAndEarnScreenState extends State<WatchAndEarnScreen>
   }
 
   Widget _buildWatchButton(bool canWatchAd, bool isAdLimitReached, bool isCooldownActive) {
+    VoidCallback? onPressedAction;
+    if (_adFailedToLoad) {
+      onPressedAction = () => _loadAdWithRetries();
+    } else if (canWatchAd) {
+      onPressedAction = _showAdAndClaimReward;
+    }
+
     return ElevatedButton.icon(
-      onPressed: canWatchAd ? _showAdAndClaimReward : null,
+      onPressed: onPressedAction,
       icon: _isAdLoading
           ? const SizedBox.shrink()
           : const Icon(Icons.movie_creation_outlined),

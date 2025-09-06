@@ -18,6 +18,8 @@ class AuthProvider with ChangeNotifier {
     });
   }
 
+  User? get currentUser => _auth.currentUser;
+
   Future<void> _executeAuthAction(Future<void> Function() action) async {
     _isLoading = true;
     _errorMessage = null;

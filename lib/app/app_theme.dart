@@ -102,7 +102,7 @@ class RewardlyTheme {
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
         textStyle: _textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
         elevation: 5,
-        shadowColor: colorScheme.primary.withOpacity(0.4),
+        shadowColor: colorScheme.primary.withAlpha(102),
       ),
     );
   }
@@ -127,7 +127,7 @@ class RewardlyTheme {
     return BottomNavigationBarThemeData(
       backgroundColor: colorScheme.surface,
       selectedItemColor: colorScheme.primary,
-      unselectedItemColor: colorScheme.onSurface.withOpacity(0.6),
+      unselectedItemColor: colorScheme.onSurface.withAlpha(153),
       selectedLabelStyle: _textTheme.labelMedium,
       unselectedLabelStyle: _textTheme.labelSmall,
       type: BottomNavigationBarType.fixed,
